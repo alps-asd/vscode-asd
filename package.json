@@ -1,24 +1,41 @@
 {
-	"name": "helloworld-minimal-sample",
-	"description": "Minimal HelloWorld example for VS Code",
-	"version": "0.0.1",
-	"publisher": "vscode-samples",
-	"repository": "https://github.com/Microsoft/vscode-extension-samples/helloworld-minimal-sample",
-	"engines": {
-		"vscode": "^1.74.0"
-	},
-	"activationEvents": [],
-	"main": "./extension.js",
-	"contributes": {
-		"commands": [
-			{
-				"command": "extension.helloWorld",
-				"title": "Hello World"
-			}
-		]
-	},
-	"scripts": {},
-	"devDependencies": {
-		"@types/vscode": "^1.73.0"
-	}
+    "name": "xml-to-html-renderer",
+    "displayName": "XML to HTML Renderer",
+    "description": "Render XML files to HTML",
+    "version": "0.0.1",
+    "publisher": "your-publisher-name",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onLanguage:xml",
+        "onCommand:extension.renderXML"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "extension.renderXML",
+                "title": "Render XML to HTML"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run package",
+        "compile": "node ./esbuild.js",
+        "package": "node ./esbuild.js --minify",
+        "watch": "node ./esbuild.js --watch"
+    },
+    "devDependencies": {
+        "@types/node": "^16.11.7",
+        "@types/vscode": "^1.90.0",
+        "@typescript-eslint/eslint-plugin": "^5.30.0",
+        "@typescript-eslint/parser": "^5.30.0",
+        "esbuild": "^0.14.54",
+        "eslint": "^8.13.0",
+        "typescript": "^4.9.5"
+    }
 }

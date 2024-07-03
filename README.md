@@ -1,21 +1,82 @@
-# Hello World Minimal Sample
+# vscode-asd 開発者ガイド
 
-This is a minimal version of the [Hello World Sample](../helloworld-sample).
+## セットアップ
 
-It does not use TypeScript and only includes the `vscode` devDependency needed for extension development.
+1. リポジトリのクローン:
 
-## VS Code API
+2. 依存関係のインストール:
 
-### `vscode` module
+   ```
+   npm install
+   ```
 
-- [`commands.registerCommand`](https://code.visualstudio.com/api/references/vscode-api#commands.registerCommand)
-- [`window.showInformationMessage`](https://code.visualstudio.com/api/references/vscode-api#window.showInformationMessage)
+## 開発
 
-### Contribution Points
+1. VSCodeでプロジェクトを開く:
+   ```
+   code .
+   ```
 
-- [`contributes.commands`](https://code.visualstudio.com/api/references/contribution-points#contributes.commands)
+2. `src/extension.ts` を編集して機能を実装または修正します。
 
-## Running the Sample
+3. 変更をビルド:
+   ```
+   npm run compile
+   ```
 
-- Run `npm install` in terminal to install dependencies
-- Run the `Run Extension` target in the Debug View.
+## デバッグ
+
+1. F5キーを押すか、「実行とデバッグ」サイドバーから「拡張機能を実行」を選択します。
+
+2. 新しいVSCodeウィンドウ（拡張機能開発ホスト）が開きます。
+
+3. 開発ホストウィンドウでXMLファイルを開きます。
+
+4. コマンドパレット（Cmd+Shift+P または Ctrl+Shift+P）を開き、"Render XML to HTML" を実行します。
+
+5. デバッグコンソールでログを確認します。
+
+## テスト
+
+1. テストの実行:
+   ```
+   npm test
+   ```
+
+2. `src/test` ディレクトリ内にテストを追加します。
+
+## パッケージング
+
+1. 拡張機能のパッケージ化:
+   ```
+   npm run package
+   ```
+
+2. `xml-to-html-renderer-[version].vsix` ファイルが生成されます。
+
+## 使用方法
+
+1. 開発ホストウィンドウでXMLファイルを開きます。
+
+2. 以下のいずれかの方法でXMLをHTMLに変換します:
+   - コマンドパレットを開き（Cmd+Shift+P または Ctrl+Shift+P）、"Render XML to HTML" を選択。
+   - XMLファイルを編集して保存（自動変換が実装されている場合）。
+
+3. 生成されたHTMLファイルが同じディレクトリに作成されます。
+
+## 注意点
+
+- 変更を加えた後は、必ず拡張機能を再読み込みしてください（開発ホストウィンドウを閉じて、F5で再起動）。
+- `package.json` の `activationEvents` と `contributes.commands` が正しく設定されていることを確認してください。
+- エラーが発生した場合は、VSCodeの出力パネルとデバッグコンソールを確認してください。
+
+## トラブルシューティング
+
+- コマンドが表示されない場合:
+  - `package.json` の `activationEvents` と `contributes.commands` を確認。
+  - `src/extension.ts` でコマンドが正しく登録されているか確認。
+- 変換が動作しない場合:
+  - デバッグコンソールでエラーメッセージを確認。
+  - XMLファイルが有効な形式であることを確認。
+
+問題が解決しない場合は、イシューを作成するか、プロジェクトのメンテナーにお問い合わせください。

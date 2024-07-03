@@ -1,0 +1,39 @@
+{
+    "name": "your-extension-name",
+    "displayName": "Your Extension Display Name",
+    "description": "Your extension description",
+    "version": "0.0.1",
+    "engines": {
+      "vscode": "^1.60.0"
+    },
+    "categories": [
+      "Other"
+    ],
+    "activationEvents": [
+      "onLanguage:xml"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+      "commands": [
+        {
+          "command": "your-extension-name.renderXML",
+          "title": "Render XML to HTML"
+        }
+      ]
+    },
+    "scripts": {
+      "vscode:prepublish": "npm run package",
+      "compile": "node ./esbuild.js",
+      "package": "node ./esbuild.js --minify",
+      "watch": "node ./esbuild.js --watch"
+    },
+    "devDependencies": {
+      "@types/node": "^16.11.7",
+      "@types/vscode": "^1.60.0",
+      "@typescript-eslint/eslint-plugin": "^5.30.0",
+      "@typescript-eslint/parser": "^5.30.0",
+      "esbuild": "^0.14.47",
+      "eslint": "^8.13.0",
+      "typescript": "^4.7.2"
+    }
+  }
