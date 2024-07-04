@@ -30,7 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
 function renderXMLToHTML(filePath: string) {
     const htmlPath = path.join(path.dirname(filePath), path.basename(filePath, '.xml') + '.html');
     
-    child_process.exec(`asd ${filePath}`, (error, stdout, stderr) => {
+    child_process.exec(`/Users/akihito/git/app-state-diagram/bin/asd ${filePath}`, (error, stdout, stderr) => {
         if (error) {
             vscode.window.showErrorMessage(`Error rendering XML: ${error.message}`);
             return;
