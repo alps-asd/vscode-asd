@@ -3,16 +3,16 @@ import * as child_process from 'child_process';
 import * as path from 'path';
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('XML to HTML renderer is now active');
+    console.log('ALPS profile renderer is now active');
 
-    let disposable = vscode.commands.registerCommand('extension.renderXML', () => {
+    let disposable = vscode.commands.registerCommand('extension.renderAsd', () => {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
             const document = editor.document;
-            if (document.languageId === 'xml') {
-                renderXMLToHTML(document.fileName);
+            if (document.languageId === 'xml' || document.languageId === 'json') {
+                renderAsd(document.fileName);
             } else {
-                vscode.window.showInformationMessage('Please open an XML file to render.');
+                vscode.window.showInformationMessage('Please open an ALPS profile to render.');
             }
         }
     });
@@ -20,19 +20,22 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 
     // ファイル変更を監視
-    const watcher = vscode.workspace.createFileSystemWatcher('**/*.xml');
+    const watcher = vscode.workspace.createFileSystemWatcher('**/*.{xml,json}');
     watcher.onDidChange((uri) => {
-        renderXMLToHTML(uri.fsPath);
+        // todo: quick validate as JSON or XML
+        renderAsd(uri.fsPath);
     });
     context.subscriptions.push(watcher);
 }
 
-function renderXMLToHTML(filePath: string) {
-    const htmlPath = path.join(path.dirname(filePath), path.basename(filePath, '.xml') + '.html');
-    
-    child_process.exec(`/Users/akihito/git/app-state-diagram/bin/asd ${filePath}`, (error, stdout, stderr) => {
+function renderAsd(filePath: string) {
+    const fileExtension = path.extname(filePath);
+    const htmlPath = path.join(path.dirname(filePath), path.basename(filePath, fileExtension) + '.html');
+
+    child_process.exec(`/Users/akihito/git/app-state-diagram/bin/asd -e ${filePath}`, (error, stdout, stderr) => {
         if (error) {
-            vscode.window.showErrorMessage(`Error rendering XML: ${error.message}`);
+            console.log(error.message);
+            vscode.window.showErrorMessage(` ${error.message}: Error rendering APLS profile`);
             return;
         }
         
@@ -41,13 +44,30 @@ function renderXMLToHTML(filePath: string) {
         
         // HTMLをWebviewで表示
         const panel = vscode.window.createWebviewPanel(
-            'xmlRenderer',
-            'XML Rendered',
+            'alpsRenderer',
+            'App State Diagram',
             vscode.ViewColumn.Beside,
-            {}
+            {
+                enableScripts: true, // JavaScriptを有効化
+                localResourceRoots: [vscode.Uri.file(path.dirname(filePath))] // ローカルリソースへのアクセスを許可
+            }
         );
-        panel.webview.html = stdout;
+
+        // HTMLコンテンツ内のリソースパスを調整
+        let htmlContent = stdout.replace(
+            /(src|href)="(.+?)"/g,
+            (match, attr, value) => {
+                if (value.startsWith('http')) {
+                    return match; // 外部リソースはそのまま
+                }
+                const resourcePath = vscode.Uri.file(path.join(path.dirname(filePath), value));
+                return `${attr}="${panel.webview.asWebviewUri(resourcePath)}"`;
+            }
+        );
+
+        panel.webview.html = htmlContent;
     });
 }
+
 
 export function deactivate() {}
