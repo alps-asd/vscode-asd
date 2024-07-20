@@ -1,9 +1,9 @@
 {
-    "name": "xml-to-html-renderer",
-    "displayName": "XML to HTML Renderer",
-    "description": "Render XML files to HTML",
+    "name": "asd-view",
+    "displayName": "ASD view",
+    "description": "Render ASD profile to HTML",
     "version": "0.0.1",
-    "publisher": "your-publisher-name",
+    "publisher": "Akihito Koriyama",
     "engines": {
         "vscode": "^1.74.0"
     },
@@ -12,14 +12,15 @@
     ],
     "activationEvents": [
         "onLanguage:xml",
-        "onCommand:extension.renderXML"
+        "onLanguage:json",
+        "onCommand:extension.renderAsd"
     ],
     "main": "./dist/extension.js",
     "contributes": {
         "commands": [
             {
-                "command": "extension.renderXML",
-                "title": "Render XML to HTML"
+                "command": "extension.renderAsd",
+                "title": "Render ALPS profile to HTML"
             }
         ]
     },
