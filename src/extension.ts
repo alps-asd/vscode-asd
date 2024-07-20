@@ -35,39 +35,36 @@ function renderAsd(filePath: string) {
     child_process.exec(`/Users/akihito/git/app-state-diagram/bin/asd -e ${filePath}`, (error, stdout, stderr) => {
         if (error) {
             console.log(error.message);
-            vscode.window.showErrorMessage(` ${error.message}: Error rendering APLS profile`);
+            vscode.window.showErrorMessage(`${error.message}: Error rendering ALPS profile`);
             return;
         }
-        
-        // 結果をHTMLファイルに書き込む
-        vscode.workspace.fs.writeFile(vscode.Uri.file(htmlPath), Buffer.from(stdout));
-        
+
         // HTMLをWebviewで表示
         const panel = vscode.window.createWebviewPanel(
             'alpsRenderer',
             'App State Diagram',
             vscode.ViewColumn.Beside,
             {
-                enableScripts: true, // JavaScriptを有効化
-                localResourceRoots: [vscode.Uri.file(path.dirname(filePath))] // ローカルリソースへのアクセスを許可
+                enableScripts: true,
+                localResourceRoots: [vscode.Uri.file(path.dirname(filePath))]
             }
         );
 
-        // HTMLコンテンツ内のリソースパスを調整
-        let htmlContent = stdout.replace(
-            /(src|href)="(.+?)"/g,
-            (match, attr, value) => {
+        // HTMLコンテンツを調整
+        let htmlContent = stdout
+            .replace('<head>', `<head>
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${panel.webview.cspSource} https:; script-src ${panel.webview.cspSource} https: 'unsafe-inline' 'unsafe-eval'; style-src ${panel.webview.cspSource} https: 'unsafe-inline'; font-src ${panel.webview.cspSource} https:;">
+                <base href="${panel.webview.asWebviewUri(vscode.Uri.file(path.dirname(filePath)))}/"/>`)
+            .replace(/(src|href)="(.+?)"/g, (match, attr, value) => {
                 if (value.startsWith('http')) {
                     return match; // 外部リソースはそのまま
                 }
                 const resourcePath = vscode.Uri.file(path.join(path.dirname(filePath), value));
                 return `${attr}="${panel.webview.asWebviewUri(resourcePath)}"`;
-            }
-        );
+            });
 
         panel.webview.html = htmlContent;
     });
 }
-
 
 export function deactivate() {}
