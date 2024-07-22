@@ -51,10 +51,11 @@ function renderAsd(filePath: string) {
         const csp = `<meta http-equiv="Content-Security-Policy" content="
             default-src 'self' ${panel.webview.cspSource};
             img-src 'self' ${panel.webview.cspSource} https: data:;
-            script-src 'self' ${panel.webview.cspSource} https: 'unsafe-inline' 'unsafe-eval';
+            script-src 'self' ${panel.webview.cspSource} https: 'unsafe-inline' 'unsafe-eval' blob:;
             style-src 'self' ${panel.webview.cspSource} https: 'unsafe-inline';
-            font-src 'self' ${panel.webview.cspSource} https:;
+            font-src 'self' ${panel.webview.cspSource} https: data:;
             connect-src 'self' ${panel.webview.cspSource} https:;
+            worker-src 'self' blob:;
         ">`;
 
         let htmlContent = stdout.replace('<head>', `<head>${csp}<base href="${panel.webview.asWebviewUri(vscode.Uri.file(path.dirname(filePath)))}/"/>`);
