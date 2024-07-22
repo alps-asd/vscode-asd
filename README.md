@@ -1,4 +1,4 @@
-# ALPS Visual Editor for VS Code Plug-in
+# ALPS Visual Editor for VS Code
 
 Enhance your ALPS (Application-Level Profile Semantics) workflow in Visual Studio Code with real-time visualization and editing support.
 
@@ -35,11 +35,3 @@ Enhance your ALPS (Application-Level Profile Semantics) workflow in Visual Studi
 3. Edit your ALPS file and observe the diagram updating in real-time
 
 The visual preview opens in a side panel, allowing simultaneous editing and visualization.
-
-## Contributing
-
-We welcome contributions to improve this plug-in! Please submit issues or pull requests on our GitHub repository.
-
-## License
-
-This plug-in is released under the MIT License. See the LICENSE file for full details.
