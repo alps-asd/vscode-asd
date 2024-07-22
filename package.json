@@ -20,7 +20,7 @@
         "commands": [
             {
                 "command": "extension.renderAsd",
-                "title": "Preview ALPS Profile as an app-state-diagram"
+                "title": "Open ALPS Preview"
             }
         ]
     },
