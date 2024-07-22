@@ -48,9 +48,9 @@ function renderAsd(filePath: string) {
         );
 
         // CSPの設定を調整
-        let htmlContent = stdout.replace('<head>', `<head>
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${panel.webview.cspSource} https: data:; script-src ${panel.webview.cspSource} https: 'unsafe-inline' 'unsafe-eval'; style-src ${panel.webview.cspSource} https: 'unsafe-inline'; font-src ${panel.webview.cspSource} https:;">
-            <base href="${panel.webview.asWebviewUri(vscode.Uri.file(path.dirname(filePath)))}/"/>`);
+        const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'self' ${panel.webview.cspSource}; img-src 'self' ${panel.webview.cspSource} https: data:; script-src 'self' ${panel.webview.cspSource} 'unsafe-inline' 'unsafe-eval'; style-src 'self' ${panel.webview.cspSource} 'unsafe-inline'; font-src 'self' ${panel.webview.cspSource};">`;
+
+        let htmlContent = stdout.replace('<head>', `<head>${csp}<base href="${panel.webview.asWebviewUri(vscode.Uri.file(path.dirname(filePath)))}/"/>`);
 
         // Webview 内でのパスの調整
         htmlContent = htmlContent.replace(/(src|href)="(.+?)"/g, (match, attr, value) => {
