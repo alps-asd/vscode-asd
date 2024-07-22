@@ -1,82 +1,45 @@
-# vscode-asd 開発者ガイド
+# ALPS Visual Editor for VS Code Plug-in
 
-## セットアップ
+Enhance your ALPS (Application-Level Profile Semantics) workflow in Visual Studio Code with real-time visualization and editing support.
 
-1. リポジトリのクローン:
+## Features
 
-2. 依存関係のインストール:
+- Live ASD Preview: Visualize your ALPS profile as an Application State Diagram in real-time
+- Side-by-side Viewing: Edit your ALPS file and instantly see the updated diagram
+- Format Support: Compatible with both XML and JSON ALPS formats
+- Auto-refresh: Preview updates automatically as you modify the ALPS file
 
-   ```
-   npm install
-   ```
+## Upcoming Features
 
-## 開発
+- ALPS-specific Code Completion
+- Syntax Highlighting for ALPS profiles
+- Quick navigation between ALPS elements and their visual representations
 
-1. VSCodeでプロジェクトを開く:
-   ```
-   code .
-   ```
+## Requirements
 
-2. `src/extension.ts` を編集して機能を実装または修正します。
+- Visual Studio Code version 1.60.0 or higher
+- ALPS profile files (XML or JSON)
+- The `asd` command-line tool available in your system PATH
 
-3. 変更をビルド:
-   ```
-   npm run compile
-   ```
+## Installation
 
-## デバッグ
+1. Install the plug-in from the Visual Studio Code Marketplace
+2. Ensure the `asd` tool is installed and accessible in your system PATH
 
-1. F5キーを押すか、「実行とデバッグ」サイドバーから「拡張機能を実行」を選択します。
+## Usage
 
-2. 新しいVSCodeウィンドウ（拡張機能開発ホスト）が開きます。
+1. Open an ALPS profile (XML or JSON) in VS Code
+2. Activate the visual preview:
+   - Use the Command Palette (Ctrl+Shift+P or Cmd+Shift+P) and search for "Open ALPS Visual Preview"
+   - Or click the "Open ALPS Preview" icon in the editor title area
+3. Edit your ALPS file and observe the diagram updating in real-time
 
-3. 開発ホストウィンドウでXMLファイルを開きます。
+The visual preview opens in a side panel, allowing simultaneous editing and visualization.
 
-4. コマンドパレット（Cmd+Shift+P または Ctrl+Shift+P）を開き、"Render XML to HTML" を実行します。
+## Contributing
 
-5. デバッグコンソールでログを確認します。
+We welcome contributions to improve this plug-in! Please submit issues or pull requests on our GitHub repository.
 
-## テスト
+## License
 
-1. テストの実行:
-   ```
-   npm test
-   ```
-
-2. `src/test` ディレクトリ内にテストを追加します。
-
-## パッケージング
-
-1. 拡張機能のパッケージ化:
-   ```
-   npm run package
-   ```
-
-2. `xml-to-html-renderer-[version].vsix` ファイルが生成されます。
-
-## 使用方法
-
-1. 開発ホストウィンドウでXMLファイルを開きます。
-
-2. 以下のいずれかの方法でXMLをHTMLに変換します:
-   - コマンドパレットを開き（Cmd+Shift+P または Ctrl+Shift+P）、"Render XML to HTML" を選択。
-   - XMLファイルを編集して保存（自動変換が実装されている場合）。
-
-3. 生成されたHTMLファイルが同じディレクトリに作成されます。
-
-## 注意点
-
-- 変更を加えた後は、必ず拡張機能を再読み込みしてください（開発ホストウィンドウを閉じて、F5で再起動）。
-- `package.json` の `activationEvents` と `contributes.commands` が正しく設定されていることを確認してください。
-- エラーが発生した場合は、VSCodeの出力パネルとデバッグコンソールを確認してください。
-
-## トラブルシューティング
-
-- コマンドが表示されない場合:
-  - `package.json` の `activationEvents` と `contributes.commands` を確認。
-  - `src/extension.ts` でコマンドが正しく登録されているか確認。
-- 変換が動作しない場合:
-  - デバッグコンソールでエラーメッセージを確認。
-  - XMLファイルが有効な形式であることを確認。
-
-問題が解決しない場合は、イシューを作成するか、プロジェクトのメンテナーにお問い合わせください。
+This plug-in is released under the MIT License. See the LICENSE file for full details.
