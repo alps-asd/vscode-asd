@@ -48,7 +48,14 @@ function renderAsd(filePath: string) {
         );
 
         // CSPの設定を調整
-        const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'self' ${panel.webview.cspSource}; img-src 'self' ${panel.webview.cspSource} https: data:; script-src 'self' ${panel.webview.cspSource} 'unsafe-inline' 'unsafe-eval'; style-src 'self' ${panel.webview.cspSource} 'unsafe-inline'; font-src 'self' ${panel.webview.cspSource};">`;
+        const csp = `<meta http-equiv="Content-Security-Policy" content="
+            default-src 'self' ${panel.webview.cspSource};
+            img-src 'self' ${panel.webview.cspSource} https: data:;
+            script-src 'self' ${panel.webview.cspSource} https: 'unsafe-inline' 'unsafe-eval';
+            style-src 'self' ${panel.webview.cspSource} https: 'unsafe-inline';
+            font-src 'self' ${panel.webview.cspSource} https:;
+            connect-src 'self' ${panel.webview.cspSource} https:;
+        ">`;
 
         let htmlContent = stdout.replace('<head>', `<head>${csp}<base href="${panel.webview.asWebviewUri(vscode.Uri.file(path.dirname(filePath)))}/"/>`);
 
