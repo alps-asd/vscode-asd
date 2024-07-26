@@ -99,34 +99,28 @@ documents.onDidChangeContent(async (change: TextDocumentChangeEvent<TextDocument
     }
 });
 
-function getOpenTags(text: string, currentPosition: number): string[] {
-    const openTags: string[] = [];
+function getOpenTag(text: string, currentPosition: number): string | null {
     let depth = 0;
-    let lastOpenTag = '';
-
     for (let i = currentPosition - 1; i >= 0; i--) {
         if (text[i] === '>') {
-            depth++;
-        } else if (text[i] === '<') {
-            if (text[i + 1] === '/') {
+            const closeTagMatch = text.slice(Math.max(0, i - 10), i + 1).match(/<\/(\w+)>$/);
+            if (closeTagMatch) {
                 depth++;
+            } else if (text[i - 1] === '/') {
+                // Self-closing tag, ignore
+                continue;
             } else {
-                depth--;
-                if (depth < 0) {
-                    const tagMatch = text.slice(i).match(/<(\w+)/);
-                    if (tagMatch) {
-                        lastOpenTag = tagMatch[1];
-                        openTags.unshift(lastOpenTag);
-                        depth = 0;
+                const openTagMatch = text.slice(Math.max(0, i - 20), i + 1).match(/<(\w+)[^>]*>$/);
+                if (openTagMatch) {
+                    if (depth === 0) {
+                        return openTagMatch[1];
                     }
+                    depth--;
                 }
             }
         }
-
-        if (openTags.length >= 5) break;
     }
-
-    return openTags;
+    return null;
 }
 
 function provideCompletionItems(params: CompletionParams): CompletionList {
@@ -155,14 +149,16 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
 
     if (tagClosing) {
         console.log('Attempting to close tag');
-        const openTags = getOpenTags(text, offset);
-        console.log('Open tags:', openTags);
-        items = openTags.map(tag => ({
-            label: tag,
-            kind: CompletionItemKind.Property,
-            insertText: `${tag}>`,
-            documentation: `Close <${tag}> tag`
-        }));
+        const openTag = getOpenTag(text, offset);
+        console.log('Open tag:', openTag);
+        if (openTag) {
+            items = [{
+                label: openTag,
+                kind: CompletionItemKind.Property,
+                insertText: `${openTag}>`,
+                documentation: `Close <${openTag}> tag`
+            }];
+        }
     } else if (insideTypeAttr) {
         items = [
             { label: 'semantic', kind: CompletionItemKind.EnumMember },
