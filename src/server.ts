@@ -15,6 +15,7 @@ import {
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import * as xml2js from 'xml2js';
+import * as sax from 'sax';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
@@ -40,38 +41,61 @@ connection.onInitialize((params: InitializeParams) => {
     };
 });
 
-function extractDescriptors(content: string): DescriptorInfo[] {
-    const regex = /<descriptor[^>]*id="([^"]*)"[^>]*(?:type="([^"]*)")?[^>]*>/g;
-    const descriptors: DescriptorInfo[] = [];
-    let match;
-    while ((match = regex.exec(content)) !== null) {
-        descriptors.push({
-            id: match[1],
-            type: match[2] || 'semantic'  // If type is not specified, default to 'semantic'
-        });
-    }
-    return descriptors;
-}
-
 async function parseAlpsProfile(content: string): Promise<DescriptorInfo[]> {
     try {
-        const result = await xml2js.parseStringPromise(content);
-        const descriptors = result.alps?.descriptor
-            ?.map((desc: any) => ({
-                id: desc.$.id,
-                type: desc.$.type || 'semantic'
-            })) || [];
-        console.log('Extracted descriptors (XML parsing):', descriptors);
-        lastValidDescriptors = descriptors;
-        return descriptors;
+      const result = await xml2js.parseStringPromise(content);
+      const descriptors = result.alps?.descriptor
+        ?.map((desc: any) => ({
+          id: desc.$.id,
+          type: desc.$.type || 'semantic'
+        })) || [];
+      console.log('Extracted descriptors (XML parsing):', descriptors);
+      if (descriptors.length > 0) {
+        lastValidDescriptors = descriptors;  // Update only if we got valid descriptors
+      }
+      return lastValidDescriptors;
     } catch (err) {
-        console.error('Error parsing ALPS profile:', err);
-        // Fall back to regex-based extraction
-        const regexDescriptors = extractDescriptors(content);
-        console.log('Extracted descriptors (regex fallback):', regexDescriptors);
-        return regexDescriptors.length > 0 ? regexDescriptors : lastValidDescriptors;
+      console.error('Error parsing ALPS profile:', err);
+      // Fall back to SAX-based extraction only if we don't have valid descriptors
+      if (lastValidDescriptors.length === 0) {
+        const saxDescriptors = await extractDescriptors(content);
+        console.log('Extracted descriptors (SAX fallback):', saxDescriptors);
+        if (saxDescriptors.length > 0) {
+          lastValidDescriptors = saxDescriptors;
+        }
+      } else {
+        console.log('Using last valid descriptors');
+      }
+      return lastValidDescriptors;
     }
-}
+  }
+  
+  function extractDescriptors(content: string): Promise<DescriptorInfo[]> {
+    return new Promise((resolve, reject) => {
+      const parser = sax.parser(true);
+      const descriptors: DescriptorInfo[] = [];
+  
+      parser.onopentag = (node) => {
+        if (node.name === 'descriptor') {
+          const id = node.attributes.id as string;
+          const type = (node.attributes.type as string) || 'semantic';
+          if (id) {
+            descriptors.push({ id, type });
+          }
+        }
+      };
+  
+      parser.onend = () => {
+        resolve(descriptors);
+      };
+  
+      parser.onerror = (err) => {
+        reject(err);
+      };
+  
+      parser.write(content).close();
+    });
+  }
 
 documents.onDidChangeContent(async (change: TextDocumentChangeEvent<TextDocument>) => {
     const document = change.document;
