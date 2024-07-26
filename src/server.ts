@@ -18,8 +18,13 @@ import * as xml2js from 'xml2js';
 const connection = createConnection(ProposedFeatures.all);
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
-let descriptorIds: string[] = [];
-let lastValidDescriptorIds: string[] = [];
+interface DescriptorInfo {
+    id: string;
+    type?: string;
+}
+
+let descriptors: DescriptorInfo[] = [];
+let lastValidDescriptors: DescriptorInfo[] = [];
 
 connection.onInitialize((params: InitializeParams) => {
     console.log('ALPS Language Server initialized');
@@ -34,31 +39,33 @@ connection.onInitialize((params: InitializeParams) => {
     };
 });
 
-function extractDescriptorIds(content: string): string[] {
-    const regex = /<descriptor[^>]*id="([^"]*)"[^>]*>/g;
-    const ids: string[] = [];
+function extractDescriptors(content: string): DescriptorInfo[] {
+    const regex = /<descriptor[^>]*id="([^"]*)"[^>]*(?:type="([^"]*)")?[^>]*>/g;
+    const descriptors: DescriptorInfo[] = [];
     let match;
     while ((match = regex.exec(content)) !== null) {
-        ids.push(match[1]);
+        descriptors.push({ id: match[1], type: match[2] });
     }
-    return ids;
+    return descriptors;
 }
 
-async function parseAlpsProfile(content: string): Promise<string[]> {
+async function parseAlpsProfile(content: string): Promise<DescriptorInfo[]> {
     try {
         const result = await xml2js.parseStringPromise(content);
-        const ids = result.alps?.descriptor
-            ?.filter((desc: any) => desc.$ && desc.$.id)
-            .map((desc: any) => desc.$.id) || [];
-        console.log('Extracted descriptor IDs (XML parsing):', ids);
-        lastValidDescriptorIds = ids;
-        return ids;
+        const descriptors = result.alps?.descriptor
+            ?.map((desc: any) => ({
+                id: desc.$.id,
+                type: desc.$.type
+            })) || [];
+        console.log('Extracted descriptors (XML parsing):', descriptors);
+        lastValidDescriptors = descriptors;
+        return descriptors;
     } catch (err) {
         console.error('Error parsing ALPS profile:', err);
         // Fall back to regex-based extraction
-        const regexIds = extractDescriptorIds(content);
-        console.log('Extracted descriptor IDs (regex fallback):', regexIds);
-        return regexIds.length > 0 ? regexIds : lastValidDescriptorIds;
+        const regexDescriptors = extractDescriptors(content);
+        console.log('Extracted descriptors (regex fallback):', regexDescriptors);
+        return regexDescriptors.length > 0 ? regexDescriptors : lastValidDescriptors;
     }
 }
 
@@ -66,8 +73,8 @@ documents.onDidChangeContent(async (change: TextDocumentChangeEvent<TextDocument
     const document = change.document;
     console.log(`Document changed. Language ID: ${document.languageId}`);
     if (document.languageId === 'alps-xml') {
-        descriptorIds = await parseAlpsProfile(document.getText());
-        console.log('Updated descriptor IDs:', descriptorIds);
+        descriptors = await parseAlpsProfile(document.getText());
+        console.log('Updated descriptors:', descriptors);
     }
 });
 
@@ -84,17 +91,28 @@ function provideCompletionItems(params: CompletionParams): CompletionItem[] {
     console.log('Line prefix:', linePrefix);
 
     // Check if we're in the correct context for descriptor ID completion
-    if (!/(?:href|rt)="#[^"]*$/.test(linePrefix)) {
+    const hrefMatch = /href="#[^"]*$/.test(linePrefix);
+    const rtMatch = /rt="#[^"]*$/.test(linePrefix);
+
+    if (!hrefMatch && !rtMatch) {
         console.log('Not in descriptor ID completion context');
         return [];
     }
 
     console.log('Providing completions for descriptor IDs');
-    return descriptorIds.map(id => ({
-        label: id,
-        kind: CompletionItemKind.Value,
-        data: { type: 'descriptorId', id }
-    }));
+    return descriptors
+        .filter(desc => {
+            if (rtMatch) {
+                // For rt, exclude descriptors with type safe, unsafe, or idempotent
+                return !['safe', 'unsafe', 'idempotent'].includes(desc.type || '');
+            }
+            return true; // Include all descriptors for href
+        })
+        .map(desc => ({
+            label: desc.id,
+            kind: CompletionItemKind.Value,
+            data: { type: 'descriptorId', id: desc.id, descriptorType: desc.type }
+        }));
 }
 
 connection.onCompletion((params: CompletionParams): CompletionItem[] => {
@@ -115,7 +133,7 @@ connection.onCompletion((params: CompletionParams): CompletionItem[] => {
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
     if (item.data && item.data.type === 'descriptorId') {
         item.detail = `Descriptor ID: ${item.data.id}`;
-        item.documentation = 'Reference to an ALPS descriptor';
+        item.documentation = `Type: ${item.data.descriptorType || 'Not specified'}`;
     }
     return item;
 });
