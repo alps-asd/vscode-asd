@@ -16,7 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (editor) {
             const document = editor.document;
             if (document.languageId === 'xml' || document.languageId === 'json') {
-                renderAsd(document.fileName);
+                renderAsd(document.fileName, context.extensionPath);
             } else {
                 vscode.window.showInformationMessage('Please open an ALPS profile to render.');
             }
@@ -25,10 +25,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(disposable);
 
-    // Watch for changes in XML and JSON files
     const watcher = vscode.workspace.createFileSystemWatcher('**/*.{xml,json}');
     watcher.onDidChange((uri) => {
-        renderAsd(uri.fsPath);
+        renderAsd(uri.fsPath, context.extensionPath);
     });
     context.subscriptions.push(watcher);
 }
@@ -37,9 +36,11 @@ export function activate(context: vscode.ExtensionContext) {
  * Renders the ALPS State Diagram for the given file.
  * @param filePath The path of the file to render
  */
-function renderAsd(filePath: string) {
-    // Execute the ASD rendering command
-    child_process.exec(`asd -e ${filePath}`, (error, stdout, stderr) => {
+function renderAsd(filePath: string, extensionPath: string) {
+    const pharPath = path.join(extensionPath, 'asd.phar');
+    const command = `php "${pharPath}" -e "${filePath}"`;
+
+    child_process.exec(command, (error, stdout, stderr) => {
         if (error) {
             console.log(error.message);
             vscode.window.showErrorMessage(`${error.message}: Error rendering ALPS profile`);
