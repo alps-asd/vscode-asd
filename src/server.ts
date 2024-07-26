@@ -7,8 +7,8 @@ import {
   CompletionItemKind,
   TextDocumentPositionParams,
   TextDocumentChangeEvent,
-  CompletionContext,
-  CompletionTriggerKind,
+  TextDocumentSyncKind,
+  CompletionParams,
 } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -27,12 +27,11 @@ connection.onInitialize((params: InitializeParams) => {
         resolveProvider: true,
         triggerCharacters: ['#']
       },
-      textDocumentSync: documents.syncKind,
+      textDocumentSync: TextDocumentSyncKind.Incremental,
     }
   };
 });
 
-// Parse ALPS profile and extract descriptor IDs
 async function parseAlpsProfile(content: string): Promise<string[]> {
   try {
     const result = await xml2js.parseStringPromise(content);
@@ -47,47 +46,37 @@ async function parseAlpsProfile(content: string): Promise<string[]> {
   }
 }
 
-// Update descriptor IDs when document changes
 documents.onDidChangeContent(async (change: TextDocumentChangeEvent<TextDocument>) => {
   const document = change.document;
-  if (document.languageId === 'xml') {
+  if (document.languageId === 'alps-xml') {
     descriptorIds = await parseAlpsProfile(document.getText());
     console.log('Updated descriptor IDs:', descriptorIds);
   }
 });
 
-// Provide completion items
 connection.onCompletion(
-    async (
-        textDocumentPosition: TextDocumentPositionParams,
-        context: CompletionContext
-    ): Promise<CompletionItem[]> => {
-      const document = documents.get(textDocumentPosition.textDocument.uri);
+    (params: CompletionParams): CompletionItem[] => {
+      const document = documents.get(params.textDocument.uri);
       if (!document) {
         return [];
       }
 
       const text = document.getText();
-      const offset = document.offsetAt(textDocumentPosition.position);
-      const line = document.getText({
-        start: { line: textDocumentPosition.position.line, character: 0 },
-        end: textDocumentPosition.position
-      });
+      const offset = document.offsetAt(params.position);
+      const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
 
-      // Only provide completions for '#' trigger or when explicitly invoked after 'href="#'
-      if (
-          (context.triggerKind === CompletionTriggerKind.TriggerCharacter && context.triggerCharacter === '#') ||
-          (context.triggerKind === CompletionTriggerKind.Invoked && /href="#[^"]*$/.test(line))
-      ) {
-        console.log('Providing completions for descriptor IDs');
-        return descriptorIds.map(id => ({
-          label: id,
-          kind: CompletionItemKind.Value,
-          data: { type: 'descriptorId', id }
-        }));
+      // Strictly check if we're in the correct context for descriptor ID completion
+      if (!/href="#[^"]*$/.test(linePrefix)) {
+        console.log('Not in descriptor ID completion context');
+        return [];
       }
 
-      return [];
+      console.log('Providing completions for descriptor IDs');
+      return descriptorIds.map(id => ({
+        label: id,
+        kind: CompletionItemKind.Value,
+        data: { type: 'descriptorId', id }
+      }));
     }
 );
 
@@ -99,7 +88,6 @@ connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   return item;
 });
 
-// Listen on the connection
 documents.listen(connection);
 connection.listen();
 
