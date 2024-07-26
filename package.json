@@ -2,7 +2,7 @@
     "name": "app-state-diagram",
     "displayName": "Application State Diagram",
     "description": "Preview ALPS Profile as an app-state-diagram",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "publisher": "koriym",
     "engines": {
         "vscode": "^1.91.0"
@@ -40,6 +40,6 @@
         "typescript": "^4.9.5"
     },
     "repository": {
-      "url": "https://github.com/alps-asd/vscode-asd"
+        "url": "https://github.com/alps-asd/vscode-asd"
     }
 }
