@@ -21,7 +21,7 @@ const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 interface DescriptorInfo {
     id: string;
-    type?: string;
+    type: string;
 }
 
 let descriptors: DescriptorInfo[] = [];
@@ -121,15 +121,28 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
 connection.onCompletion((params: CompletionParams): CompletionList => {
     console.log('Completion requested', JSON.stringify(params.context));
 
-    // Provide completions for both href="#" and rt="#"
-    if (params.context?.triggerKind === CompletionTriggerKind.TriggerCharacter &&
-        params.context.triggerCharacter === '#') {
-        console.log('Trigger character "#" detected, providing completions');
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+        console.log('No document found for completion');
+        return { isIncomplete: false, items: [] };
+    }
+
+    const text = document.getText();
+    const offset = document.offsetAt(params.position);
+    const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
+    console.log('Line prefix:', linePrefix);
+
+    // Check if we're in the correct context for descriptor ID completion
+    const hrefMatch = /href="#[^"]*$/.test(linePrefix);
+    const rtMatch = /rt="#[^"]*$/.test(linePrefix);
+
+    if (hrefMatch || rtMatch) {
+        console.log('In correct context, providing completions');
         return provideCompletionItems(params);
     }
 
-    // Disable all other completions
-    console.log('Completion request ignored');
+    // For all other cases, return an empty list to disable completions
+    console.log('Not in correct context, completion request ignored');
     return { isIncomplete: false, items: [] };
 });
 
