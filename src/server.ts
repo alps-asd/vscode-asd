@@ -5,12 +5,10 @@ import {
     InitializeParams,
     CompletionItem,
     CompletionItemKind,
-    TextDocumentPositionParams,
-    TextDocumentChangeEvent,
-    TextDocumentSyncKind,
     CompletionParams,
-    CompletionTriggerKind,
     CompletionList,
+    TextDocumentSyncKind,
+    TextDocumentChangeEvent
 } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -51,7 +49,7 @@ async function parseAlpsProfile(content: string): Promise<DescriptorInfo[]> {
             })) || [];
         console.log('Extracted descriptors (XML parsing):', descriptors);
         if (descriptors.length > 0) {
-            lastValidDescriptors = descriptors;  // Update only if we got valid descriptors
+            lastValidDescriptors = descriptors;
         }
         return lastValidDescriptors;
     } catch (err) {
@@ -117,24 +115,41 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
     const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
     console.log('Line prefix:', linePrefix);
 
+    const insideAlps = /<alps[^>]*>[\s\S]*$/.test(text);
     const tagStart = /<\s*([a-zA-Z]*)?$/.test(linePrefix);
-    const attributeStart = /\s+[a-zA-Z\-]*$/.test(linePrefix);
-    console.log('tagStart:', tagStart, 'attributeStart:', attributeStart);
+    const attributeStart = /\s+[a-zA-Z\-]*=["']?[^"']*$/.test(linePrefix);
+    const insideTypeAttr = /\s+type=["'][^"']*$/.test(linePrefix);
+    console.log('insideAlps:', insideAlps, 'tagStart:', tagStart, 'attributeStart:', attributeStart, 'insideTypeAttr:', insideTypeAttr);
 
     let items: CompletionItem[] = [];
 
-    if (tagStart) {
+    if (insideTypeAttr) {
         items = [
-            { label: 'alps', kind: CompletionItemKind.Property },
-            { label: 'descriptor', kind: CompletionItemKind.Property },
-            // Add other tags according to the schema
+            { label: 'semantic', kind: CompletionItemKind.EnumMember },
+            { label: 'safe', kind: CompletionItemKind.EnumMember },
+            { label: 'unsafe', kind: CompletionItemKind.EnumMember },
+            { label: 'idempotent', kind: CompletionItemKind.EnumMember }
         ];
+    } else if (tagStart) {
+        if (!insideAlps) {
+            items = [{ label: 'alps', kind: CompletionItemKind.Class }];
+        } else {
+            items = [
+                { label: 'title', kind: CompletionItemKind.Property },
+                { label: 'doc', kind: CompletionItemKind.Property },
+                { label: 'link', kind: CompletionItemKind.Property },
+                { label: 'descriptor', kind: CompletionItemKind.Property }
+            ];
+        }
     } else if (attributeStart) {
         items = [
             { label: 'id', kind: CompletionItemKind.Property },
             { label: 'href', kind: CompletionItemKind.Property },
             { label: 'type', kind: CompletionItemKind.Property },
-            // Add other attributes according to the schema
+            { label: 'rt', kind: CompletionItemKind.Property },
+            { label: 'rel', kind: CompletionItemKind.Property },
+            { label: 'title', kind: CompletionItemKind.Property },
+            { label: 'tag', kind: CompletionItemKind.Property }
         ];
     }
 
