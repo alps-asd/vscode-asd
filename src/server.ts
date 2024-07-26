@@ -117,9 +117,11 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
 
     const insideAlps = /<alps[^>]*>[\s\S]*$/.test(text);
     const tagStart = /<\s*([a-zA-Z]*)?$/.test(linePrefix);
-    const attributeStart = /\s+[a-zA-Z\-]*=["']?[^"']*$/.test(linePrefix);
+    const attributeStart = /\s+\w*$/.test(linePrefix);
     const insideTypeAttr = /\s+type=["'][^"']*$/.test(linePrefix);
-    console.log('insideAlps:', insideAlps, 'tagStart:', tagStart, 'attributeStart:', attributeStart, 'insideTypeAttr:', insideTypeAttr);
+    const insideHrefAttr = /\s+href=["'][^"']*$/.test(linePrefix);
+    const insideRtAttr = /\s+rt=["'][^"']*$/.test(linePrefix);
+    console.log('insideAlps:', insideAlps, 'tagStart:', tagStart, 'attributeStart:', attributeStart, 'insideTypeAttr:', insideTypeAttr, 'insideHrefAttr:', insideHrefAttr, 'insideRtAttr:', insideRtAttr);
 
     let items: CompletionItem[] = [];
 
@@ -130,6 +132,22 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
             { label: 'unsafe', kind: CompletionItemKind.EnumMember },
             { label: 'idempotent', kind: CompletionItemKind.EnumMember }
         ];
+    } else if (insideHrefAttr) {
+        // href attribute specific completion
+        items = descriptors.map(descriptor => ({
+            label: `#${descriptor.id}`,
+            kind: CompletionItemKind.Reference,
+            documentation: `Reference to ${descriptor.type} descriptor with id ${descriptor.id}`
+        }));
+    } else if (insideRtAttr) {
+        // rt attribute specific completion
+        items = descriptors
+            .filter(descriptor => descriptor.type === 'semantic') // or other filter criteria
+            .map(descriptor => ({
+                label: `#${descriptor.id}`,
+                kind: CompletionItemKind.Reference,
+                documentation: `Transition to ${descriptor.id}`
+            }));
     } else if (tagStart) {
         if (!insideAlps) {
             items = [{ label: 'alps', kind: CompletionItemKind.Class }];
@@ -142,15 +160,14 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
             ];
         }
     } else if (attributeStart) {
-        items = [
-            { label: 'id', kind: CompletionItemKind.Property },
-            { label: 'href', kind: CompletionItemKind.Property },
-            { label: 'type', kind: CompletionItemKind.Property },
-            { label: 'rt', kind: CompletionItemKind.Property },
-            { label: 'rel', kind: CompletionItemKind.Property },
-            { label: 'title', kind: CompletionItemKind.Property },
-            { label: 'tag', kind: CompletionItemKind.Property }
-        ];
+        const currentAttributes: string[] = linePrefix.match(/\b\w+(?==)/g) || [];
+        const availableAttributes = ['id', 'href', 'type', 'rt', 'rel', 'title', 'tag']
+            .filter(attr => !currentAttributes.includes(attr));
+
+        items = availableAttributes.map(attr => ({
+            label: attr,
+            kind: CompletionItemKind.Property
+        }));
     }
 
     console.log(`Providing ${items.length} completion items`);
