@@ -43,59 +43,58 @@ connection.onInitialize((params: InitializeParams) => {
 
 async function parseAlpsProfile(content: string): Promise<DescriptorInfo[]> {
     try {
-      const result = await xml2js.parseStringPromise(content);
-      const descriptors = result.alps?.descriptor
-        ?.map((desc: any) => ({
-          id: desc.$.id,
-          type: desc.$.type || 'semantic'
-        })) || [];
-      console.log('Extracted descriptors (XML parsing):', descriptors);
-      if (descriptors.length > 0) {
-        lastValidDescriptors = descriptors;  // Update only if we got valid descriptors
-      }
-      return lastValidDescriptors;
+        const result = await xml2js.parseStringPromise(content);
+        const descriptors = result.alps?.descriptor
+            ?.map((desc: any) => ({
+                id: desc.$.id,
+                type: desc.$.type || 'semantic'
+            })) || [];
+        console.log('Extracted descriptors (XML parsing):', descriptors);
+        if (descriptors.length > 0) {
+            lastValidDescriptors = descriptors;  // Update only if we got valid descriptors
+        }
+        return lastValidDescriptors;
     } catch (err) {
-      console.error('Error parsing ALPS profile:', err);
-      // Fall back to SAX-based extraction only if we don't have valid descriptors
-      if (lastValidDescriptors.length === 0) {
-        const saxDescriptors = await extractDescriptors(content);
-        console.log('Extracted descriptors (SAX fallback):', saxDescriptors);
-        if (saxDescriptors.length > 0) {
-          lastValidDescriptors = saxDescriptors;
+        console.error('Error parsing ALPS profile:', err);
+        if (lastValidDescriptors.length === 0) {
+            const saxDescriptors = await extractDescriptors(content);
+            console.log('Extracted descriptors (SAX fallback):', saxDescriptors);
+            if (saxDescriptors.length > 0) {
+                lastValidDescriptors = saxDescriptors;
+            }
+        } else {
+            console.log('Using last valid descriptors');
         }
-      } else {
-        console.log('Using last valid descriptors');
-      }
-      return lastValidDescriptors;
+        return lastValidDescriptors;
     }
-  }
-  
-  function extractDescriptors(content: string): Promise<DescriptorInfo[]> {
+}
+
+function extractDescriptors(content: string): Promise<DescriptorInfo[]> {
     return new Promise((resolve, reject) => {
-      const parser = sax.parser(true);
-      const descriptors: DescriptorInfo[] = [];
-  
-      parser.onopentag = (node) => {
-        if (node.name === 'descriptor') {
-          const id = node.attributes.id as string;
-          const type = (node.attributes.type as string) || 'semantic';
-          if (id) {
-            descriptors.push({ id, type });
-          }
-        }
-      };
-  
-      parser.onend = () => {
-        resolve(descriptors);
-      };
-  
-      parser.onerror = (err) => {
-        reject(err);
-      };
-  
-      parser.write(content).close();
+        const parser = sax.parser(true);
+        const descriptors: DescriptorInfo[] = [];
+
+        parser.onopentag = (node) => {
+            if (node.name === 'descriptor') {
+                const id = node.attributes.id as string;
+                const type = (node.attributes.type as string) || 'semantic';
+                if (id) {
+                    descriptors.push({ id, type });
+                }
+            }
+        };
+
+        parser.onend = () => {
+            resolve(descriptors);
+        };
+
+        parser.onerror = (err) => {
+            reject(err);
+        };
+
+        parser.write(content).close();
     });
-  }
+}
 
 documents.onDidChangeContent(async (change: TextDocumentChangeEvent<TextDocument>) => {
     const document = change.document;
@@ -118,42 +117,24 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
     const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
     console.log('Line prefix:', linePrefix);
 
-    // Check for different completion contexts
-    const hrefMatch = /href="#[^"]*$/.test(linePrefix);
-    const rtMatch = /rt="#[^"]*$/.test(linePrefix);
-    const idMatch = /id="#[^"]*$/.test(linePrefix);
-    const tagStart = /<[^>]*$/.test(linePrefix);
-    const attributeStart = /\s[^=]*$/.test(linePrefix);
+    const tagStart = /<\s*([a-zA-Z]*)?$/.test(linePrefix);
+    const attributeStart = /\s+[a-zA-Z\-]*$/.test(linePrefix);
+    console.log('tagStart:', tagStart, 'attributeStart:', attributeStart);
 
     let items: CompletionItem[] = [];
 
-    if (hrefMatch || rtMatch) {
-        items = descriptors
-            .filter(desc => rtMatch ? desc.type === 'semantic' : true)
-            .map(desc => ({
-                label: desc.id,
-                kind: CompletionItemKind.Value,
-                data: { type: 'descriptorId', id: desc.id, descriptorType: desc.type }
-            }));
-    } else if (idMatch) {
-        items = descriptors.map(desc => ({
-            label: desc.id,
-            kind: CompletionItemKind.Value,
-            data: { type: 'descriptorId', id: desc.id, descriptorType: desc.type }
-        }));
-    } else if (tagStart) {
+    if (tagStart) {
         items = [
-            { label: 'descriptor', kind: CompletionItemKind.Property },
             { label: 'alps', kind: CompletionItemKind.Property },
-            // Add other ALPS-specific tags here
+            { label: 'descriptor', kind: CompletionItemKind.Property },
+            // Add other tags according to the schema
         ];
     } else if (attributeStart) {
         items = [
             { label: 'id', kind: CompletionItemKind.Property },
             { label: 'href', kind: CompletionItemKind.Property },
-            { label: 'rt', kind: CompletionItemKind.Property },
             { label: 'type', kind: CompletionItemKind.Property },
-            // Add other ALPS-specific attributes here
+            // Add other attributes according to the schema
         ];
     }
 
