@@ -19,6 +19,11 @@
             "aliases": ["ALPS XML", "alps-xml"],
             "extensions": [".xml"],
             "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "alps-xml",
+            "scopeName": "text.xml",
+            "path": "./syntaxes/xml.tmLanguage.json"
         }]
     },
     "scripts": {

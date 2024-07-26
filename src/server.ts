@@ -54,31 +54,38 @@ documents.onDidChangeContent(async (change: TextDocumentChangeEvent<TextDocument
     }
 });
 
-connection.onCompletion(
-    (params: CompletionParams): CompletionItem[] => {
-        const document = documents.get(params.textDocument.uri);
-        if (!document) {
-            return [];
-        }
-
-        const text = document.getText();
-        const offset = document.offsetAt(params.position);
-        const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
-
-        // Strictly check if we're in the correct context for descriptor ID completion
-        if (!/href="#[^"]*$/.test(linePrefix)) {
-            console.log('Not in descriptor ID completion context');
-            return [];
-        }
-
-        console.log('Providing completions for descriptor IDs');
-        return descriptorIds.map(id => ({
-            label: id,
-            kind: CompletionItemKind.Value,
-            data: { type: 'descriptorId', id }
-        }));
+function provideCompletionItems(params: CompletionParams): CompletionItem[] {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+        return [];
     }
-);
+
+    const text = document.getText();
+    const offset = document.offsetAt(params.position);
+    const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
+
+    // Strictly check if we're in the correct context for descriptor ID completion
+    if (!/href="#[^"]*$/.test(linePrefix)) {
+        console.log('Not in descriptor ID completion context');
+        return [];
+    }
+
+    console.log('Providing completions for descriptor IDs');
+    return descriptorIds.map(id => ({
+        label: id,
+        kind: CompletionItemKind.Value,
+        data: { type: 'descriptorId', id }
+    }));
+}
+
+connection.onCompletion((params: CompletionParams) => {
+    // Only provide completions for our specific case
+    if (params.context && params.context.triggerCharacter === '#') {
+        return provideCompletionItems(params);
+    }
+    // Return an empty array for all other cases to disable default completions
+    return [];
+});
 
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
     if (item.data && item.data.type === 'descriptorId') {
