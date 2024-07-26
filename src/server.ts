@@ -10,6 +10,7 @@ import {
     TextDocumentSyncKind,
     CompletionParams,
     CompletionTriggerKind,
+    CompletionList,
 } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -44,7 +45,7 @@ function extractDescriptors(content: string): DescriptorInfo[] {
     const descriptors: DescriptorInfo[] = [];
     let match;
     while ((match = regex.exec(content)) !== null) {
-        descriptors.push({ id: match[1], type: match[2] });
+        descriptors.push({ id: match[1], type: match[2] || 'semantic' });
     }
     return descriptors;
 }
@@ -55,7 +56,7 @@ async function parseAlpsProfile(content: string): Promise<DescriptorInfo[]> {
         const descriptors = result.alps?.descriptor
             ?.map((desc: any) => ({
                 id: desc.$.id,
-                type: desc.$.type
+                type: desc.$.type || 'semantic'
             })) || [];
         console.log('Extracted descriptors (XML parsing):', descriptors);
         lastValidDescriptors = descriptors;
@@ -78,11 +79,11 @@ documents.onDidChangeContent(async (change: TextDocumentChangeEvent<TextDocument
     }
 });
 
-function provideCompletionItems(params: CompletionParams): CompletionItem[] {
+function provideCompletionItems(params: CompletionParams): CompletionList {
     const document = documents.get(params.textDocument.uri);
     if (!document) {
         console.log('No document found for completion');
-        return [];
+        return { isIncomplete: false, items: [] };
     }
 
     const text = document.getText();
@@ -96,15 +97,15 @@ function provideCompletionItems(params: CompletionParams): CompletionItem[] {
 
     if (!hrefMatch && !rtMatch) {
         console.log('Not in descriptor ID completion context');
-        return [];
+        return { isIncomplete: false, items: [] };
     }
 
     console.log('Providing completions for descriptor IDs');
-    return descriptors
+    const items = descriptors
         .filter(desc => {
             if (rtMatch) {
-                // For rt, include only semantic descriptors (type is 'semantic' or not specified)
-                return desc.type === 'semantic' || !desc.type;
+                // For rt, include only semantic descriptors
+                return desc.type === 'semantic';
             }
             return true; // Include all descriptors for href
         })
@@ -113,9 +114,11 @@ function provideCompletionItems(params: CompletionParams): CompletionItem[] {
             kind: CompletionItemKind.Value,
             data: { type: 'descriptorId', id: desc.id, descriptorType: desc.type }
         }));
+
+    return { isIncomplete: false, items };
 }
 
-connection.onCompletion((params: CompletionParams): CompletionItem[] => {
+connection.onCompletion((params: CompletionParams): CompletionList => {
     console.log('Completion requested', JSON.stringify(params.context));
 
     // Provide completions for both href="#" and rt="#"
@@ -127,13 +130,13 @@ connection.onCompletion((params: CompletionParams): CompletionItem[] => {
 
     // Disable all other completions
     console.log('Completion request ignored');
-    return [];
+    return { isIncomplete: false, items: [] };
 });
 
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
     if (item.data && item.data.type === 'descriptorId') {
         item.detail = `Descriptor ID: ${item.data.id}`;
-        item.documentation = `Type: ${item.data.descriptorType || 'Not specified (semantic)'}`;
+        item.documentation = `Type: ${item.data.descriptorType}`;
     }
     return item;
 });
