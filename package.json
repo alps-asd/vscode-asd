@@ -20,11 +20,12 @@
             "extensions": [".xml"],
             "configuration": "./language-configuration.json"
         }],
-        "grammars": [{
-            "language": "alps-xml",
-            "scopeName": "text.xml",
-            "path": "./syntaxes/xml.tmLanguage.json"
-        }]
+        "configurationDefaults": {
+            "[alps-xml]": {
+                "editor.suggest.showWords": false,
+                "editor.suggest.showSnippets": false
+            }
+        }
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
