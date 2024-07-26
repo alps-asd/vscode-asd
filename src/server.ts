@@ -32,7 +32,7 @@ connection.onInitialize((params: InitializeParams) => {
         capabilities: {
             completionProvider: {
                 resolveProvider: true,
-                triggerCharacters: ['<', ' ', '"', '#']
+                triggerCharacters: ['<', ' ', '"', '#', '/']
             },
             textDocumentSync: TextDocumentSyncKind.Incremental,
         }
@@ -54,21 +54,17 @@ async function parseAlpsProfile(content: string): Promise<DescriptorInfo[]> {
         return lastValidDescriptors;
     } catch (err) {
         console.error('Error parsing ALPS profile:', err);
-        if (lastValidDescriptors.length === 0) {
-            const saxDescriptors = await extractDescriptors(content);
-            console.log('Extracted descriptors (SAX fallback):', saxDescriptors);
-            if (saxDescriptors.length > 0) {
-                lastValidDescriptors = saxDescriptors;
-            }
-        } else {
-            console.log('Using last valid descriptors');
+        const saxDescriptors = await extractDescriptors(content);
+        console.log('Extracted descriptors (SAX fallback):', saxDescriptors);
+        if (saxDescriptors.length > 0) {
+            lastValidDescriptors = saxDescriptors;
         }
         return lastValidDescriptors;
     }
 }
 
 function extractDescriptors(content: string): Promise<DescriptorInfo[]> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         const parser = sax.parser(true);
         const descriptors: DescriptorInfo[] = [];
 
@@ -86,8 +82,8 @@ function extractDescriptors(content: string): Promise<DescriptorInfo[]> {
             resolve(descriptors);
         };
 
-        parser.onerror = (err) => {
-            reject(err);
+        parser.onerror = () => {
+            parser.resume();
         };
 
         parser.write(content).close();
@@ -103,6 +99,36 @@ documents.onDidChangeContent(async (change: TextDocumentChangeEvent<TextDocument
     }
 });
 
+function getOpenTags(text: string, currentPosition: number): string[] {
+    const openTags: string[] = [];
+    let depth = 0;
+    let lastOpenTag = '';
+
+    for (let i = currentPosition - 1; i >= 0; i--) {
+        if (text[i] === '>') {
+            depth++;
+        } else if (text[i] === '<') {
+            if (text[i + 1] === '/') {
+                depth++;
+            } else {
+                depth--;
+                if (depth < 0) {
+                    const tagMatch = text.slice(i).match(/<(\w+)/);
+                    if (tagMatch) {
+                        lastOpenTag = tagMatch[1];
+                        openTags.unshift(lastOpenTag);
+                        depth = 0;
+                    }
+                }
+            }
+        }
+
+        if (openTags.length >= 5) break;
+    }
+
+    return openTags;
+}
+
 function provideCompletionItems(params: CompletionParams): CompletionList {
     const document = documents.get(params.textDocument.uri);
     if (!document) {
@@ -114,18 +140,30 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
     const offset = document.offsetAt(params.position);
     const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
     console.log('Line prefix:', linePrefix);
+    console.log('Offset:', offset);
 
-    const insideAlps = /<alps[^>]*>[\s\S]*$/.test(text);
+    const insideAlps = /<alps[^>]*>[\s\S]*$/.test(text.slice(0, offset));
     const tagStart = /<\s*([a-zA-Z]*)?$/.test(linePrefix);
     const attributeStart = /\s+\w*$/.test(linePrefix);
     const insideTypeAttr = /\s+type=["'][^"']*$/.test(linePrefix);
     const insideHrefAttr = /\s+href=["'][^"']*$/.test(linePrefix);
     const insideRtAttr = /\s+rt=["'][^"']*$/.test(linePrefix);
-    console.log('insideAlps:', insideAlps, 'tagStart:', tagStart, 'attributeStart:', attributeStart, 'insideTypeAttr:', insideTypeAttr, 'insideHrefAttr:', insideHrefAttr, 'insideRtAttr:', insideRtAttr);
+    const tagClosing = /<\/\w*$/.test(linePrefix);
+    console.log('insideAlps:', insideAlps, 'tagStart:', tagStart, 'attributeStart:', attributeStart, 'insideTypeAttr:', insideTypeAttr, 'insideHrefAttr:', insideHrefAttr, 'insideRtAttr:', insideRtAttr, 'tagClosing:', tagClosing);
 
     let items: CompletionItem[] = [];
 
-    if (insideTypeAttr) {
+    if (tagClosing) {
+        console.log('Attempting to close tag');
+        const openTags = getOpenTags(text, offset);
+        console.log('Open tags:', openTags);
+        items = openTags.map(tag => ({
+            label: tag,
+            kind: CompletionItemKind.Property,
+            insertText: `${tag}>`,
+            documentation: `Close <${tag}> tag`
+        }));
+    } else if (insideTypeAttr) {
         items = [
             { label: 'semantic', kind: CompletionItemKind.EnumMember },
             { label: 'safe', kind: CompletionItemKind.EnumMember },
@@ -133,16 +171,14 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
             { label: 'idempotent', kind: CompletionItemKind.EnumMember }
         ];
     } else if (insideHrefAttr) {
-        // href attribute specific completion
         items = descriptors.map(descriptor => ({
             label: `#${descriptor.id}`,
             kind: CompletionItemKind.Reference,
             documentation: `Reference to ${descriptor.type} descriptor with id ${descriptor.id}`
         }));
     } else if (insideRtAttr) {
-        // rt attribute specific completion
         items = descriptors
-            .filter(descriptor => descriptor.type === 'semantic') // or other filter criteria
+            .filter(descriptor => descriptor.type === 'semantic')
             .map(descriptor => ({
                 label: `#${descriptor.id}`,
                 kind: CompletionItemKind.Reference,
@@ -175,7 +211,7 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
 }
 
 connection.onCompletion((params: CompletionParams): CompletionList => {
-    console.log('Completion requested', JSON.stringify(params.context));
+    console.log('Completion requested', JSON.stringify(params));
     return provideCompletionItems(params);
 });
 
