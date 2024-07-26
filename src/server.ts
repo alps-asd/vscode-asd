@@ -103,8 +103,8 @@ function provideCompletionItems(params: CompletionParams): CompletionItem[] {
     return descriptors
         .filter(desc => {
             if (rtMatch) {
-                // For rt, exclude descriptors with type safe, unsafe, or idempotent
-                return !['safe', 'unsafe', 'idempotent'].includes(desc.type || '');
+                // For rt, include only semantic descriptors (type is 'semantic' or not specified)
+                return desc.type === 'semantic' || !desc.type;
             }
             return true; // Include all descriptors for href
         })
@@ -133,7 +133,7 @@ connection.onCompletion((params: CompletionParams): CompletionItem[] => {
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
     if (item.data && item.data.type === 'descriptorId') {
         item.detail = `Descriptor ID: ${item.data.id}`;
-        item.documentation = `Type: ${item.data.descriptorType || 'Not specified'}`;
+        item.documentation = `Type: ${item.data.descriptorType || 'Not specified (semantic)'}`;
     }
     return item;
 });
