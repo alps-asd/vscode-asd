@@ -1,0 +1,60 @@
+{
+    "name": "ALPS XML",
+    "scopeName": "text.xml.alps",
+    "fileTypes": ["xml"],
+    "patterns": [
+        {
+            "include": "#tags"
+        },
+        {
+            "include": "#comment"
+        }
+    ],
+    "repository": {
+        "tags": {
+            "patterns": [
+                {
+                    "name": "meta.tag.alps.xml",
+                    "begin": "(<)((?:(descriptor|alps)\\b))",
+                    "beginCaptures": {
+                        "1": { "name": "punctuation.definition.tag.begin.xml" },
+                        "2": { "name": "entity.name.tag.localname.xml" }
+                    },
+                    "end": "(/?>)",
+                    "endCaptures": {
+                        "1": { "name": "punctuation.definition.tag.end.xml" }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#tagAttributes"
+                        }
+                    ]
+                }
+            ]
+        },
+        "tagAttributes": {
+            "patterns": [
+                {
+                    "name": "entity.other.attribute-name.localname.xml",
+                    "match": "\\b(?:id|href|rt|type)\\b"
+                },
+                {
+                    "name": "string.quoted.double.xml",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.entity.xml",
+                            "match": "&(?:#x?[0-9a-fA-F]+|[a-zA-Z]+);"
+                        }
+                    ]
+                }
+            ]
+        },
+        "comment": {
+            "name": "comment.block.xml",
+            "begin": "<!--",
+            "end": "-->"
+        }
+    }
+}

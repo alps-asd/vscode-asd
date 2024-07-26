@@ -33,7 +33,7 @@ connection.onInitialize((params: InitializeParams) => {
         capabilities: {
             completionProvider: {
                 resolveProvider: true,
-                triggerCharacters: ['#']
+                triggerCharacters: ['<', ' ', '"', '#']
             },
             textDocumentSync: TextDocumentSyncKind.Incremental,
         }
@@ -45,7 +45,10 @@ function extractDescriptors(content: string): DescriptorInfo[] {
     const descriptors: DescriptorInfo[] = [];
     let match;
     while ((match = regex.exec(content)) !== null) {
-        descriptors.push({ id: match[1], type: match[2] || 'semantic' });
+        descriptors.push({
+            id: match[1],
+            type: match[2] || 'semantic'  // If type is not specified, default to 'semantic'
+        });
     }
     return descriptors;
 }
@@ -91,59 +94,52 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
     const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
     console.log('Line prefix:', linePrefix);
 
-    // Check if we're in the correct context for descriptor ID completion
+    // Check for different completion contexts
     const hrefMatch = /href="#[^"]*$/.test(linePrefix);
     const rtMatch = /rt="#[^"]*$/.test(linePrefix);
+    const idMatch = /id="#[^"]*$/.test(linePrefix);
+    const tagStart = /<[^>]*$/.test(linePrefix);
+    const attributeStart = /\s[^=]*$/.test(linePrefix);
 
-    if (!hrefMatch && !rtMatch) {
-        console.log('Not in descriptor ID completion context');
-        return { isIncomplete: false, items: [] };
-    }
+    let items: CompletionItem[] = [];
 
-    console.log('Providing completions for descriptor IDs');
-    const items = descriptors
-        .filter(desc => {
-            if (rtMatch) {
-                // For rt, include only semantic descriptors
-                return desc.type === 'semantic';
-            }
-            return true; // Include all descriptors for href
-        })
-        .map(desc => ({
+    if (hrefMatch || rtMatch) {
+        items = descriptors
+            .filter(desc => rtMatch ? desc.type === 'semantic' : true)
+            .map(desc => ({
+                label: desc.id,
+                kind: CompletionItemKind.Value,
+                data: { type: 'descriptorId', id: desc.id, descriptorType: desc.type }
+            }));
+    } else if (idMatch) {
+        items = descriptors.map(desc => ({
             label: desc.id,
             kind: CompletionItemKind.Value,
             data: { type: 'descriptorId', id: desc.id, descriptorType: desc.type }
         }));
+    } else if (tagStart) {
+        items = [
+            { label: 'descriptor', kind: CompletionItemKind.Property },
+            { label: 'alps', kind: CompletionItemKind.Property },
+            // Add other ALPS-specific tags here
+        ];
+    } else if (attributeStart) {
+        items = [
+            { label: 'id', kind: CompletionItemKind.Property },
+            { label: 'href', kind: CompletionItemKind.Property },
+            { label: 'rt', kind: CompletionItemKind.Property },
+            { label: 'type', kind: CompletionItemKind.Property },
+            // Add other ALPS-specific attributes here
+        ];
+    }
 
+    console.log(`Providing ${items.length} completion items`);
     return { isIncomplete: false, items };
 }
 
 connection.onCompletion((params: CompletionParams): CompletionList => {
     console.log('Completion requested', JSON.stringify(params.context));
-
-    const document = documents.get(params.textDocument.uri);
-    if (!document) {
-        console.log('No document found for completion');
-        return { isIncomplete: false, items: [] };
-    }
-
-    const text = document.getText();
-    const offset = document.offsetAt(params.position);
-    const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
-    console.log('Line prefix:', linePrefix);
-
-    // Check if we're in the correct context for descriptor ID completion
-    const hrefMatch = /href="#[^"]*$/.test(linePrefix);
-    const rtMatch = /rt="#[^"]*$/.test(linePrefix);
-
-    if (hrefMatch || rtMatch) {
-        console.log('In correct context, providing completions');
-        return provideCompletionItems(params);
-    }
-
-    // For all other cases, return an empty list to disable completions
-    console.log('Not in correct context, completion request ignored');
-    return { isIncomplete: false, items: [] };
+    return provideCompletionItems(params);
 });
 
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
