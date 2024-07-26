@@ -83,8 +83,8 @@ function provideCompletionItems(params: CompletionParams): CompletionItem[] {
     const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
     console.log('Line prefix:', linePrefix);
 
-    // Strictly check if we're in the correct context for descriptor ID completion
-    if (!/href="#[^"]*$/.test(linePrefix)) {
+    // Check if we're in the correct context for descriptor ID completion
+    if (!/(?:href|rt)="#[^"]*$/.test(linePrefix)) {
         console.log('Not in descriptor ID completion context');
         return [];
     }
@@ -100,7 +100,7 @@ function provideCompletionItems(params: CompletionParams): CompletionItem[] {
 connection.onCompletion((params: CompletionParams): CompletionItem[] => {
     console.log('Completion requested', JSON.stringify(params.context));
 
-    // Only provide completions for our specific case
+    // Provide completions for both href="#" and rt="#"
     if (params.context?.triggerKind === CompletionTriggerKind.TriggerCharacter &&
         params.context.triggerCharacter === '#') {
         console.log('Trigger character "#" detected, providing completions');
