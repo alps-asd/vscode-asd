@@ -32,7 +32,7 @@
     },
     "devDependencies": {
         "@types/node": "^16.11.7",
-        "@types/vscode": "^1.90.0",
+        "@types/vscode": "^1.91.0",
         "@typescript-eslint/eslint-plugin": "^5.30.0",
         "@typescript-eslint/parser": "^5.30.0",
         "esbuild": "^0.14.54",
@@ -41,5 +41,11 @@
     },
     "repository": {
         "url": "https://github.com/alps-asd/vscode-asd"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^9.0.1",
+        "vscode-languageserver": "^9.0.1",
+        "vscode-languageserver-textdocument": "^1.0.11",
+        "xml2js": "^0.6.2"
     }
 }

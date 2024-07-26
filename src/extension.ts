@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
 import * as child_process from 'child_process';
 import * as path from 'path';
+import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from 'vscode-languageclient/node';
+
+let client: LanguageClient;
 
 /**
  * Activates the ALPS profile renderer extension.
- * 
+ *
  * @param context The extension context
  */
 export function activate(context: vscode.ExtensionContext) {
@@ -30,7 +33,33 @@ export function activate(context: vscode.ExtensionContext) {
         renderAsd(uri.fsPath, context.extensionPath);
     });
     context.subscriptions.push(watcher);
+
+    // Start the language server
+    const serverModule = context.asAbsolutePath(path.join('out', 'server.js'));
+    const debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
+
+    const serverOptions: ServerOptions = {
+        run: { module: serverModule, transport: TransportKind.ipc },
+        debug: { module: serverModule, transport: TransportKind.ipc, options: debugOptions }
+    };
+
+    const clientOptions: LanguageClientOptions = {
+        documentSelector: [{ scheme: 'file', language: 'xml' }],
+        synchronize: {
+            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.xml')
+        }
+    };
+
+    client = new LanguageClient(
+        'alpsLanguageServer',
+        'ALPS Language Server',
+        serverOptions,
+        clientOptions
+    );
+
+    client.start();
 }
+
 
 /**
  * Renders the ALPS State Diagram for the given file.
@@ -89,4 +118,8 @@ function renderAsd(filePath: string, extensionPath: string) {
 /**
  * Deactivates the extension.
  */
-export function deactivate() {}
+export function deactivate() {
+    if (client) {
+        return client.stop();
+    }
+}
