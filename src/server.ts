@@ -9,6 +9,7 @@ import {
     TextDocumentChangeEvent,
     TextDocumentSyncKind,
     CompletionParams,
+    CompletionTriggerKind,
 } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -78,12 +79,16 @@ function provideCompletionItems(params: CompletionParams): CompletionItem[] {
     }));
 }
 
-connection.onCompletion((params: CompletionParams) => {
+connection.onCompletion((params: CompletionParams): CompletionItem[] => {
+    console.log('Completion requested', params.context);
+
     // Only provide completions for our specific case
-    if (params.context && params.context.triggerCharacter === '#') {
+    if (params.context?.triggerKind === CompletionTriggerKind.TriggerCharacter &&
+        params.context.triggerCharacter === '#') {
         return provideCompletionItems(params);
     }
-    // Return an empty array for all other cases to disable default completions
+
+    // Disable all other completions
     return [];
 });
 
