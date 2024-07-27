@@ -209,7 +209,7 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
             items = [{
                 label: openTag,
                 kind: CompletionItemKind.Property,
-                insertText: `${openTag}`,
+                insertText: `${openTag}>`,
                 documentation: `Close <${openTag}> tag`
             }];
         }
@@ -241,7 +241,13 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
         // タグの開始時の補完
         if (!insideAlps) {
             // alpsタグがまだ開かれていない場合
-            items = [{ label: 'alps', kind: CompletionItemKind.Class }];
+            items = [{
+                label: 'alps',
+                kind: CompletionItemKind.Class,
+                insertText: `?xml version="1.0"?>\n<alps xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://alps-io.github.io/schemas/alps.xsd">\n\t$1\n</alps`,
+                insertTextFormat: InsertTextFormat.Snippet,
+                documentation: `Inserts a <alps> tag with schema attributes and closes it.`
+            }];
         } else {
             // alpsタグが開かれている場合
             const tagNames = ['title', 'doc', 'link', 'descriptor'];
