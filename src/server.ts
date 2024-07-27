@@ -15,6 +15,7 @@ import {
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import * as xml2js from 'xml2js';
 import * as sax from 'sax';
+import semanticTerms from './semanticTerms'; // semanticTerms.ts からのインポート
 
 // サーバーの接続を作成
 const connection = createConnection(ProposedFeatures.all);
@@ -178,6 +179,8 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
     const text = document.getText();
     const offset = document.offsetAt(params.position);
     const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
+    const idStart = /<descriptor\s+id="\w*$/.test(linePrefix); // id属性の補完を検出
+
     console.log('Line prefix:', linePrefix);
     console.log('Offset:', offset);
 
@@ -256,6 +259,15 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
                 items.push(createTagCompletionItem(tagName)); // ここで補完アイテムを追加
             });
         }
+    } else if (idStart) {
+        // descriptor id属性の補完
+        items = semanticTerms.map(term => ({
+            label: term,
+            kind: CompletionItemKind.Text,
+            insertText: term,
+            insertTextFormat: InsertTextFormat.PlainText,
+            documentation: `Inserts the term "${term}" as id value.`
+        }));
     } else if (attributeStart) {
         // 属性の補完
         const currentAttributes: string[] = linePrefix.match(/\b\w+(?==)/g) || [];
