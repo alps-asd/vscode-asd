@@ -1,4 +1,4 @@
-const semanticTerms: string[] = [
+export const semanticTerms: string[] = [
     "about",
     "abridged",
     "abstract",
