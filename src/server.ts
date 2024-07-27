@@ -13,19 +13,27 @@ import { provideCompletionItems } from './completionItems';
 import { parseAlpsProfile, DescriptorInfo } from './alpsParser';
 import { validateXML } from './ImprovedXMLValidator';
 
-// サーバーの接続を作成
 const connection = createConnection(ProposedFeatures.all);
-
-// ドキュメントマネージャを初期化
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
-
-// ディスクリプタ情報のリストを格納する変数
 let descriptors: DescriptorInfo[] = [];
-
-// バリデーションタイマー
 let validationTimer: NodeJS.Timeout | null = null;
 
-// サーバーの初期化時に呼ばれる
+// エラーメッセージを抽出するヘルパー関数
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    return String(error);
+}
+
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    connection.console.error(`Uncaught Exception: ${getErrorMessage(error)}`);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    connection.console.error(`Unhandled Rejection: ${getErrorMessage(reason)}`);
+});
+
 connection.onInitialize((params: InitializeParams) => {
     console.log('ALPS Language Server initialized');
     return {
@@ -39,46 +47,54 @@ connection.onInitialize((params: InitializeParams) => {
     };
 });
 
-// ドキュメントが変更されたときに呼ばれる
 documents.onDidChangeContent(async (change: TextDocumentChangeEvent<TextDocument>) => {
-    const document = change.document;
-    console.log(`Document changed. Language ID: ${document.languageId}`);
+    try {
+        const document = change.document;
+        console.log(`Document changed. Language ID: ${document.languageId}`);
 
-    if (document.languageId === 'alps-xml') {
-        // 既存の検証タイマーをクリア
-        if (validationTimer) {
-            clearTimeout(validationTimer);
+        if (document.languageId === 'alps-xml') {
+            if (validationTimer) {
+                clearTimeout(validationTimer);
+            }
+
+            validationTimer = setTimeout(async () => {
+                try {
+                    const diagnostics = validateXML(document.getText());
+
+                    const immediateErrors = diagnostics.filter(d => d.severity === DiagnosticSeverity.Error);
+                    connection.sendDiagnostics({ uri: document.uri, diagnostics: immediateErrors });
+
+                    setTimeout(() => {
+                        connection.sendDiagnostics({ uri: document.uri, diagnostics });
+                    }, 1000);
+
+                    descriptors = await parseAlpsProfile(document.getText());
+                    console.log('Updated descriptors:', descriptors);
+                } catch (error) {
+                    console.error('Error in validation timer:', error);
+                    connection.console.error(`Error in validation timer: ${getErrorMessage(error)}`);
+                    // エラーが発生した場合でも空の診断情報を送信して、以前のエラー表示をクリアする
+                    connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
+                }
+            }, 500);
         }
-
-        // 新しい検証タイマーを設定
-        validationTimer = setTimeout(async () => {
-            const diagnostics = validateXML(document.getText());
-
-            // エラーのみを即座に表示し、警告は遅延させる
-            const immediateErrors = diagnostics.filter(d => d.severity === DiagnosticSeverity.Error);
-            connection.sendDiagnostics({ uri: document.uri, diagnostics: immediateErrors });
-
-            // 警告を含むすべての診断情報を少し遅れて送信
-            setTimeout(() => {
-                connection.sendDiagnostics({ uri: document.uri, diagnostics });
-            }, 1000); // 1秒後に警告を表示
-
-            // ALPS解析処理
-            descriptors = await parseAlpsProfile(document.getText());
-            console.log('Updated descriptors:', descriptors);
-        }, 500); // 500ミリ秒の遅延
+    } catch (error) {
+        console.error('Error in onDidChangeContent:', error);
+        connection.console.error(`Error in onDidChangeContent: ${getErrorMessage(error)}`);
     }
 });
 
-// コンテンツ補完が要求されたときに呼ばれる
 connection.onCompletion((params) => {
-    return provideCompletionItems(params, documents, descriptors);
+    try {
+        return provideCompletionItems(params, documents, descriptors);
+    } catch (error) {
+        console.error('Error in onCompletion:', error);
+        connection.console.error(`Error in onCompletion: ${getErrorMessage(error)}`);
+        return [];
+    }
 });
 
-// ドキュメントイベントのリスナーを登録
 documents.listen(connection);
-
-// サーバー接続を開始
 connection.listen();
 
 console.log('ALPS Language Server is running');
