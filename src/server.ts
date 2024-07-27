@@ -149,10 +149,19 @@ function getOpenTag(text: string, currentPosition: number): string | null {
 
 // タグに対応する自動補完アイテムを生成するヘルパー関数を追加
 function createTagCompletionItem(tagName: string): CompletionItem {
+    if (tagName === 'descriptor') {
+        return {
+            label: tagName,
+            kind: CompletionItemKind.Property,
+            insertText: `${tagName}`,
+            insertTextFormat: InsertTextFormat.PlainText,
+            documentation: `Inserts a <${tagName}> tag.`
+        };
+    }
     return {
         label: tagName,
         kind: CompletionItemKind.Property,
-        insertText: `${tagName}>${1}</${tagName}>`,
+        insertText: `${tagName}>$1</${tagName}`,
         insertTextFormat: InsertTextFormat.Snippet,
         documentation: `Inserts a <${tagName}> tag and automatically closes it.`
     };
@@ -200,7 +209,7 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
             items = [{
                 label: openTag,
                 kind: CompletionItemKind.Property,
-                insertText: `${openTag}>`,
+                insertText: `${openTag}`,
                 documentation: `Close <${openTag}> tag`
             }];
         }
