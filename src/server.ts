@@ -224,7 +224,7 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
     } else if (insideHrefAttr) {
         // href属性の値を補完
         items = descriptors.map(descriptor => ({
-            label: `#${descriptor.id}`,
+            label: `${descriptor.id}`,
             kind: CompletionItemKind.Reference,
             documentation: `Reference to ${descriptor.type} descriptor with id ${descriptor.id}`
         }));
@@ -233,7 +233,7 @@ function provideCompletionItems(params: CompletionParams): CompletionList {
         items = descriptors
             .filter(descriptor => descriptor.type === 'semantic')
             .map(descriptor => ({
-                label: `#${descriptor.id}`,
+                label: `${descriptor.id}`,
                 kind: CompletionItemKind.Reference,
                 documentation: `Transition to ${descriptor.id}`
             }));
