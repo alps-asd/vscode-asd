@@ -127,7 +127,7 @@ export function provideCompletionItems(params: CompletionParams, documents: Text
             items = [{
                 label: 'alps',
                 kind: CompletionItemKind.Class,
-                insertText: `alps version="1.0">\n\t$1\n</alps`,
+                insertText: `?xml version="1.0" encoding="UTF-8" ?>\n<alps xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://alps-io.github.io/schemas/alps.xsd">\n\t$1\n</alps`,
                 insertTextFormat: InsertTextFormat.Snippet,
                 documentation: `Inserts a <alps> tag with version attribute and closes it.`
             }];
