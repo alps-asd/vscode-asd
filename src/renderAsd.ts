@@ -66,8 +66,8 @@ async function showErrorMessage(error: string) {
         case 'DescriptorNotFound':
             const position = await findDescriptorReference(activeEditor.document, parsedError.descriptorId!);
             if (position) {
-                vscode.window.showErrorMessage(parsedError.message, 'Go to Reference').then(selection => {
-                    if (selection === 'Go to Reference') {
+                vscode.window.showErrorMessage(parsedError.message, 'Go to Error').then(selection => {
+                    if (selection === 'Go to Error') {
                         activeEditor.selection = new vscode.Selection(position, position);
                         activeEditor.revealRange(new vscode.Range(position, position));
                     }
