@@ -1,18 +1,22 @@
+こちらが更新されたREADMEです。追加された機能を反映しました。
+
+---
+
 # ALPS Visual Editor for VS Code
 
 Enhance your ALPS (Application-Level Profile Semantics) workflow in Visual Studio Code with real-time visualization and editing support.
 
 ## Features
 
-- Live ASD Preview: Visualize your ALPS profile as an Application State Diagram in real-time
-- Side-by-side Viewing: Edit your ALPS file and instantly see the updated diagram
-- Format Support: Compatible with both XML and JSON ALPS formats
-- Auto-refresh: Preview updates automatically as you modify the ALPS file
+- **Live ASD Preview:** Visualize your ALPS profile as an Application State Diagram in real-time
+- **Side-by-side Viewing:** Edit your ALPS file and instantly see the updated diagram
+- **Format Support:** Compatible with both XML and JSON ALPS formats
+- **Auto-refresh:** Preview updates automatically as you modify the ALPS file
+- **Detailed ALPS-specific Code Completion:** Enhanced code completion for ALPS profiles, now available
+- **Syntax Highlighting for ALPS Profiles:** Choose the ALPS XML language mode for XML files. Files with the `.alpx.xml` extension automatically select this mode.
 
 ## Upcoming Features
 
-- ALPS-specific Code Completion
-- Syntax Highlighting for ALPS profiles
 - Quick navigation between ALPS elements and their visual representations
 
 ## Requirements
@@ -35,3 +39,7 @@ Enhance your ALPS (Application-Level Profile Semantics) workflow in Visual Studi
 3. Edit your ALPS file and observe the diagram updating in real-time
 
 The visual preview opens in a side panel, allowing simultaneous editing and visualization.
+
+## Additional Features
+
+- **Create New ALPS File:** Easily start a new ALPS file using the "Create New ALPS File" command available in the Command Palette.
