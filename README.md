@@ -2,7 +2,7 @@
 
 ---
 
-# ALPS Visual Editor for VS Code
+# Application State Diagram for VS Code
 
 Enhance your ALPS (Application-Level Profile Semantics) workflow in Visual Studio Code with real-time visualization and editing support.
 
