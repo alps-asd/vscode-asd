@@ -11,9 +11,8 @@
     ],
     "activationEvents": [
         "onLanguage:alps-xml",
-        "onLanguage:xml",
-        "onLanguage:json",
-        "onCommand:extension.renderAsd"
+        "onCommand:extension.renderAsd",
+        "onCommand:extension.createAlpsFile"
     ],
     "main": "./out/extension.js",
     "contributes": {
@@ -21,16 +20,12 @@
             {
                 "command": "extension.renderAsd",
                 "title": "Open ALPS Preview"
+            },
+            {
+                "command": "extension.createAlpsFile",
+                "title": "Create New ALPS File"
             }
         ],
-        "menus": {
-            "commandPalette": [
-                {
-                    "command": "extension.renderAsd",
-                    "when": "editorLangId == 'alps-xml' || editorLangId == 'xml' || editorLangId == 'json'"
-                }
-            ]
-        },
         "languages": [
             {
                 "id": "alps-xml",

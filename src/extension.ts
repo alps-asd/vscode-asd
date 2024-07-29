@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import * as child_process from 'child_process';
+import * as fs from 'fs';
 import { workspace, ExtensionContext } from 'vscode';
 
 import {
@@ -11,6 +12,7 @@ import {
 } from 'vscode-languageclient/node';
 
 let client: LanguageClient;
+let alpsStatusBarItem: vscode.StatusBarItem;
 
 export function activate(context: ExtensionContext) {
     // Register the command to render ASD
@@ -18,23 +20,35 @@ export function activate(context: ExtensionContext) {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
             const document = editor.document;
-            if (document.languageId === 'xml' || document.languageId === 'json') {
+            if (document.languageId === 'alps-xml' && isAlpsDocument(document.getText())) {
                 renderAsd(document.fileName, context.extensionPath);
             } else {
-                vscode.window.showInformationMessage('Please open an ALPS profile to render.');
+                vscode.window.showInformationMessage('Please open a valid ALPS XML file to render preview.');
             }
         }
     });
 
     context.subscriptions.push(disposable);
 
+    // Register the command to create a new ALPS file
+    let createAlpsFileDisposable = vscode.commands.registerCommand('extension.createAlpsFile', createAlpsFile);
+    context.subscriptions.push(createAlpsFileDisposable);
+
+    // Create status bar item
+    alpsStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    context.subscriptions.push(alpsStatusBarItem);
+
     // The shared file watcher
-    const watcher = vscode.workspace.createFileSystemWatcher('**/*.{xml,json}');
+    const watcher = vscode.workspace.createFileSystemWatcher('**/*.xml');
     watcher.onDidChange((uri) => {
-        renderAsd(uri.fsPath, context.extensionPath);
+        checkAndUpdateAlpsStatus(uri);
     });
 
     context.subscriptions.push(watcher);
+
+    // Check ALPS status when a text document is opened or changed
+    vscode.workspace.onDidOpenTextDocument(checkAndUpdateAlpsStatus);
+    vscode.workspace.onDidChangeTextDocument((event) => checkAndUpdateAlpsStatus(event.document.uri));
 
     const serverModule = context.asAbsolutePath(
         path.join('out', 'server.js')
@@ -67,10 +81,54 @@ export function activate(context: ExtensionContext) {
     client.start();
 }
 
-/**
- * Renders the ALPS State Diagram for the given file.
- * @param filePath The path of the file to render
- */
+function isAlpsDocument(content: string): boolean {
+    const alpsTagRegex = /^\s*<alps\s+[^>]*>/m;
+    return alpsTagRegex.test(content);
+}
+
+function checkAndUpdateAlpsStatus(uri: vscode.Uri) {
+    vscode.workspace.openTextDocument(uri).then(document => {
+        if (document.languageId === 'alps-xml') {
+            const isAlps = isAlpsDocument(document.getText());
+            updateAlpsStatus(document, isAlps);
+        }
+    });
+}
+
+function updateAlpsStatus(document: vscode.TextDocument, isAlps: boolean) {
+    if (isAlps) {
+        alpsStatusBarItem.text = "ALPS Document";
+        alpsStatusBarItem.show();
+    } else {
+        alpsStatusBarItem.hide();
+    }
+}
+
+async function createAlpsFile() {
+    const wsPath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+    if (!wsPath) {
+        vscode.window.showErrorMessage('No workspace folder open');
+        return;
+    }
+
+    const filePath = await vscode.window.showInputBox({
+        prompt: 'Enter file name',
+        value: 'new_alps_profile.xml'
+    });
+
+    if (filePath) {
+        const fullPath = path.join(wsPath, filePath);
+        const content = `<?xml version="1.0" encoding="UTF-8"?>
+<alps
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://alps-io.github.io/schemas/alps.xsd">
+</alps>`;
+        fs.writeFileSync(fullPath, content);
+        const doc = await vscode.workspace.openTextDocument(fullPath);
+        await vscode.window.showTextDocument(doc);
+    }
+}
+
 function renderAsd(filePath: string, extensionPath: string) {
     const pharPath = path.join(extensionPath, 'asd.phar');
     const command = `php "${pharPath}" -e "${filePath}"`;
@@ -120,7 +178,6 @@ function renderAsd(filePath: string, extensionPath: string) {
         panel.webview.html = htmlContent;
     });
 }
-
 
 export function deactivate(): Thenable<void> | undefined {
     if (!client) {
