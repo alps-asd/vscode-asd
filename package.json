@@ -10,7 +10,7 @@
         "Other"
     ],
     "activationEvents": [
-        "onLanguage:alps-xml",
+        "onLanguage:xml",
         "onCommand:extension.renderAsd",
         "onCommand:extension.createAlpsFile"
     ],
