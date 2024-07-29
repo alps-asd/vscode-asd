@@ -2,7 +2,7 @@
     "name": "app-state-diagram",
     "displayName": "Application State Diagram",
     "description": "Renderer for ALPS profiles with custom completion",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "engines": {
         "vscode": "^1.60.0"
     },
@@ -47,7 +47,7 @@
             }
         ]
     },
-     "scripts": {
+    "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
