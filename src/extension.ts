@@ -1,24 +1,24 @@
-import * as path from 'path';
 import * as vscode from 'vscode';
+import * as path from 'path';
 import {ExtensionContext, workspace} from 'vscode';
-
 import {LanguageClient, LanguageClientOptions, ServerOptions, TransportKind} from 'vscode-languageclient/node';
 import {renderAsd} from "./renderAsd";
 import {createAlpsFile} from "./createAlpsFile";
 
 let client: LanguageClient;
+let fileWatchers: Map<string, vscode.FileSystemWatcher> = new Map();
 
 export function activate(context: ExtensionContext) {
     // Register the command to render ASD
-    let renderAsdDisposable = vscode.commands.registerCommand('extension.renderAsd', () => {
+    let renderAsdDisposable = vscode.commands.registerCommand('extension.renderAsd', async (uri?: vscode.Uri) => {
         const editor = vscode.window.activeTextEditor;
-        if (editor) {
-            const document = editor.document;
-            if (document.languageId === 'alps-xml' || document.fileName.endsWith('.alps.xml')) {
-                renderAsd(document.fileName, context.extensionPath);
-            } else {
-                vscode.window.showInformationMessage('Please open an ALPS XML file (.alps.xml) to render preview.');
-            }
+        if (editor || uri) {
+            const document = uri ? await vscode.workspace.openTextDocument(uri) : editor!.document;
+            renderAsd(document.fileName, context.extensionPath);
+            // 新しいファイルウォッチャーを作成
+            createFileWatcher(document.fileName);
+        } else {
+            vscode.window.showInformationMessage('No active document to render ALPS preview.');
         }
     });
 
@@ -27,13 +27,6 @@ export function activate(context: ExtensionContext) {
     // Register the command to create a new ALPS file
     let createAlpsFileDisposable = vscode.commands.registerCommand('extension.createAlpsFile', createAlpsFile);
     context.subscriptions.push(createAlpsFileDisposable);
-
-    // Automatically set language mode for .alps.xml files
-    workspace.onDidOpenTextDocument((document) => {
-        if (document.fileName.endsWith('.alps.xml')) {
-            vscode.languages.setTextDocumentLanguage(document, 'alps-xml');
-        }
-    });
 
     const serverModule = context.asAbsolutePath(
         path.join('out', 'server.js')
@@ -51,11 +44,11 @@ export function activate(context: ExtensionContext) {
 
     const clientOptions: LanguageClientOptions = {
         documentSelector: [
-            { scheme: 'file', language: 'alps-xml' },
-            { scheme: 'file', pattern: '**/*.alps.xml' }
+            { scheme: 'file', pattern: '**/*.alps.xml' },
+            { scheme: 'file', pattern: '**/*.alps.json' }
         ],
         synchronize: {
-            fileEvents: workspace.createFileSystemWatcher('**/*.alps.xml')
+            // ファイルウォッチャーは動的に管理するため、ここでは指定しない
         }
     };
 
@@ -69,7 +62,25 @@ export function activate(context: ExtensionContext) {
     client.start();
 }
 
+function createFileWatcher(filePath: string) {
+    if (fileWatchers.has(filePath)) {
+        return; // 既にウォッチャーが存在する場合は何もしない
+    }
+
+    const watcher = workspace.createFileSystemWatcher(filePath);
+    watcher.onDidChange(() => {
+        // ファイルが変更されたときの処理
+        vscode.commands.executeCommand('extension.renderAsd', vscode.Uri.file(filePath));
+    });
+
+    fileWatchers.set(filePath, watcher);
+}
+
 export function deactivate(): Thenable<void> | undefined {
+    // ファイルウォッチャーをクリーンアップ
+    fileWatchers.forEach(watcher => watcher.dispose());
+    fileWatchers.clear();
+
     if (!client) {
         return undefined;
     }
