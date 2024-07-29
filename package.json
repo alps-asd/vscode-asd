@@ -1,8 +1,8 @@
 {
-    "name": "alps-profile-renderer",
-    "displayName": "ALPS Profile Renderer",
+    "name": "app-state-diagram",
+    "displayName": "Application State Diagram",
     "description": "Renderer for ALPS profiles with custom completion",
-    "version": "1.0.0",
+    "version": "0.0.3",
     "engines": {
         "vscode": "^1.60.0"
     },
