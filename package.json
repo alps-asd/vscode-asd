@@ -10,10 +10,27 @@
         "Other"
     ],
     "activationEvents": [
-        "onLanguage:alps-xml"
+        "onLanguage:alps-xml",
+        "onLanguage:xml",
+        "onLanguage:json",
+        "onCommand:extension.renderAsd"
     ],
     "main": "./out/extension.js",
     "contributes": {
+        "commands": [
+            {
+                "command": "extension.renderAsd",
+                "title": "Open ALPS Preview"
+            }
+        ],
+        "menus": {
+            "commandPalette": [
+                {
+                    "command": "extension.renderAsd",
+                    "when": "editorLangId == 'alps-xml' || editorLangId == 'xml' || editorLangId == 'json'"
+                }
+            ]
+        },
         "languages": [
             {
                 "id": "alps-xml",
