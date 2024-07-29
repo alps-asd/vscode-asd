@@ -19,10 +19,10 @@ export function activate(context: ExtensionContext) {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
             const document = editor.document;
-            if (document.languageId === 'alps-xml') {
+            if (document.languageId === 'alps-xml' || document.fileName.endsWith('.alps.xml')) {
                 renderAsd(document.fileName, context.extensionPath);
             } else {
-                vscode.window.showInformationMessage('Please open an ALPS XML file to render preview.');
+                vscode.window.showInformationMessage('Please open an ALPS XML file (.alps.xml) to render preview.');
             }
         }
     });
@@ -32,6 +32,13 @@ export function activate(context: ExtensionContext) {
     // Register the command to create a new ALPS file
     let createAlpsFileDisposable = vscode.commands.registerCommand('extension.createAlpsFile', createAlpsFile);
     context.subscriptions.push(createAlpsFileDisposable);
+
+    // Automatically set language mode for .alps.xml files
+    workspace.onDidOpenTextDocument((document) => {
+        if (document.fileName.endsWith('.alps.xml')) {
+            vscode.languages.setTextDocumentLanguage(document, 'alps-xml');
+        }
+    });
 
     const serverModule = context.asAbsolutePath(
         path.join('out', 'server.js')
@@ -48,9 +55,12 @@ export function activate(context: ExtensionContext) {
     };
 
     const clientOptions: LanguageClientOptions = {
-        documentSelector: [{ scheme: 'file', language: 'alps-xml' }],
+        documentSelector: [
+            { scheme: 'file', language: 'alps-xml' },
+            { scheme: 'file', pattern: '**/*.alps.xml' }
+        ],
         synchronize: {
-            fileEvents: workspace.createFileSystemWatcher('**/*.xml')
+            fileEvents: workspace.createFileSystemWatcher('**/*.alps.xml')
         }
     };
 
@@ -73,7 +83,7 @@ async function createAlpsFile() {
 
     const filePath = await vscode.window.showInputBox({
         prompt: 'Enter file name',
-        value: 'untitled_alps.xml'
+        value: 'new_alps_profile.alps.xml'
     });
 
     if (filePath) {
@@ -86,7 +96,7 @@ async function createAlpsFile() {
         fs.writeFileSync(fullPath, content);
         const doc = await vscode.workspace.openTextDocument(fullPath);
         await vscode.window.showTextDocument(doc);
-        await vscode.languages.setTextDocumentLanguage(doc, 'alps-xml');
+        // No need to explicitly set language mode as it will be automatically set by the file watcher
     }
 }
 

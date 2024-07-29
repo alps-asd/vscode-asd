@@ -10,7 +10,7 @@
         "Other"
     ],
     "activationEvents": [
-        "onLanguage:xml",
+        "onLanguage:alps-xml",
         "onCommand:extension.renderAsd",
         "onCommand:extension.createAlpsFile"
     ],
@@ -34,7 +34,7 @@
                     "alps-xml"
                 ],
                 "extensions": [
-                    ".xml"
+                    ".alps.xml"
                 ],
                 "configuration": "./language-configuration.json"
             }
@@ -47,7 +47,7 @@
             }
         ]
     },
-    "scripts": {
+     "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
