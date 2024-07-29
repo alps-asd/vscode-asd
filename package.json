@@ -2,7 +2,7 @@
     "name": "app-state-diagram",
     "displayName": "Application State Diagram",
     "description": "Renderer for ALPS profiles with custom completion",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "engines": {
         "vscode": "^1.60.0"
     },
