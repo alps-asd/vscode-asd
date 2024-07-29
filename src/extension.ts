@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import * as child_process from 'child_process';
 import * as fs from 'fs';
-import { workspace, ExtensionContext } from 'vscode';
+import { workspace, ExtensionContext, TextDocument, Uri } from 'vscode';
 
 import {
     LanguageClient,
@@ -47,8 +47,8 @@ export function activate(context: ExtensionContext) {
     context.subscriptions.push(watcher);
 
     // Check ALPS status when a text document is opened or changed
-    vscode.workspace.onDidOpenTextDocument(checkAndUpdateAlpsStatus);
-    vscode.workspace.onDidChangeTextDocument((event) => checkAndUpdateAlpsStatus(event.document.uri));
+    vscode.workspace.onDidOpenTextDocument((document) => checkAndUpdateAlpsStatus(document));
+    vscode.workspace.onDidChangeTextDocument((event) => checkAndUpdateAlpsStatus(event.document));
 
     const serverModule = context.asAbsolutePath(
         path.join('out', 'server.js')
@@ -86,11 +86,18 @@ function isAlpsDocument(content: string): boolean {
     return alpsTagRegex.test(content);
 }
 
-function checkAndUpdateAlpsStatus(uri: vscode.Uri) {
-    vscode.workspace.openTextDocument(uri).then(document => {
-        if (document.languageId === 'alps-xml') {
-            const isAlps = isAlpsDocument(document.getText());
-            updateAlpsStatus(document, isAlps);
+function checkAndUpdateAlpsStatus(documentOrUri: TextDocument | Uri) {
+    let document: Thenable<TextDocument>;
+    if (documentOrUri instanceof Uri) {
+        document = vscode.workspace.openTextDocument(documentOrUri);
+    } else {
+        document = Promise.resolve(documentOrUri);
+    }
+
+    document.then(doc => {
+        if (doc.languageId === 'alps-xml') {
+            const isAlps = isAlpsDocument(doc.getText());
+            updateAlpsStatus(doc, isAlps);
         }
     });
 }
