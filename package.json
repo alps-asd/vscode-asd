@@ -45,7 +45,12 @@
                 "scopeName": "text.xml.alps",
                 "path": "./syntaxes/alps-xml.tmLanguage.json"
             }
-        ]
+        ],
+        "configurationDefaults": {
+            "files.associations": {
+                "*.alps.xml": "alps-xml"
+            }
+        }
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
