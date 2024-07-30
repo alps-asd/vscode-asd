@@ -39,9 +39,8 @@ export function provideCompletionItems(params: CompletionParams, documents: Text
 
     const text = document.getText();
     const offset = document.offsetAt(params.position);
-    const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
+    const linePrefix = text.slice(text.lastIndexOf('', offset - 1) + 1, offset);
     const idStart = /<descriptor\s+id="\w*$/.test(linePrefix);
-
     console.log('Line prefix:', linePrefix);
     console.log('Offset:', offset);
 
@@ -52,7 +51,6 @@ export function provideCompletionItems(params: CompletionParams, documents: Text
     const insideHrefAttr = /\s+href=["'][^"']*$/.test(linePrefix);
     const insideRtAttr = /\s+rt=["'][^"']*$/.test(linePrefix);
     const tagClosing = /<\/\w*$/.test(linePrefix);
-
     const docStart = /<doc\s*$/.test(linePrefix) || /<doc\s+[^>]*$/.test(linePrefix);
     const insideFormatAttr = /<doc[^>]*\s+format=["'][^"']*$/.test(linePrefix);
     const insideContentTypeAttr = /<doc[^>]*\s+contentType=["'][^"']*$/.test(linePrefix);
@@ -92,11 +90,10 @@ export function provideCompletionItems(params: CompletionParams, documents: Text
             }];
         }
     } else if (docStart) {
-        const currentAttributesMatch = linePrefix.match(/\b\w+(?==)/g);
+        const currentAttributesMatch = linePrefix.match(/\w+(?==)/g);
         const currentAttributes: string[] = currentAttributesMatch ? currentAttributesMatch : [];
         const availableAttributes = ['format', 'contentType', 'href', 'tag']
             .filter(attr => !currentAttributes.includes(attr));
-
         items = availableAttributes.map(attr => ({
             label: attr,
             kind: CompletionItemKind.Property
@@ -127,7 +124,7 @@ export function provideCompletionItems(params: CompletionParams, documents: Text
             items = [{
                 label: 'alps',
                 kind: CompletionItemKind.Class,
-                insertText: `?xml version="1.0" encoding="UTF-8" ?>\n<alps xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://alps-io.github.io/schemas/alps.xsd">\n\t$1\n</alps`,
+                insertText: `?xml version="1.0" encoding="UTF-8" ?><alps xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://alps-io.github.io/schemas/alps.xsd">	$1</alps`,
                 insertTextFormat: InsertTextFormat.Snippet,
                 documentation: `Inserts a <alps> tag with version attribute and closes it.`
             }];
@@ -146,11 +143,10 @@ export function provideCompletionItems(params: CompletionParams, documents: Text
             documentation: `Inserts the term "${term}" as id value.`
         }));
     } else if (attributeStart) {
-        const currentAttributesMatch = linePrefix.match(/\b\w+(?==)/g);
+        const currentAttributesMatch = linePrefix.match(/\w+(?==)/g);
         const currentAttributes: string[] = currentAttributesMatch ? currentAttributesMatch : [];
         const availableAttributes = ['id', 'href', 'type', 'rt', 'rel', 'title', 'tag']
             .filter(attr => !currentAttributes.includes(attr));
-
         items = availableAttributes.map(attr => ({
             label: attr,
             kind: CompletionItemKind.Property
