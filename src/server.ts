@@ -114,9 +114,7 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionList => 
 
         if (languageId === 'alps-json') {
             console.log('Providing ALPS JSON completions');
-            const completions = provideJsonCompletionItems(document, params);
-            console.log('Completion items:', completions.items.map(item => item.label));
-            return completions;
+            return provideJsonCompletionItems(document, params, descriptors);
         } else if (languageId === 'alps-xml') {
             console.log('Providing XML completions');
             return provideCompletionItems(params, documents, descriptors);
