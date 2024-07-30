@@ -1,29 +1,24 @@
-import vscode from "vscode";
-import path from "path";
-import fs from "fs";
+import * as vscode from 'vscode';
 
 export async function createAlpsFile() {
-    const wsPath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-    if (!wsPath) {
-        vscode.window.showErrorMessage('No workspace folder open');
-        return;
-    }
+    try {
+        // Create a new untitled document
+        const newFile = await vscode.workspace.openTextDocument({
+            language: 'alps-xml',
+            content: '<?xml version="1.0" encoding="UTF-8"?>\n<alps version="1.0">\n    \n</alps>'
+        });
 
-    const filePath = await vscode.window.showInputBox({
-        prompt: 'Enter file name',
-        value: 'new_alps_profile.alps.xml'
-    });
+        // Show the new document
+        const editor = await vscode.window.showTextDocument(newFile);
 
-    if (filePath) {
-        const fullPath = path.join(wsPath, filePath);
-        const content = `<?xml version="1.0" encoding="UTF-8"?>
-<alps
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:noNamespaceSchemaLocation="https://alps-io.github.io/schemas/alps.xsd">
-</alps>`;
-        fs.writeFileSync(fullPath, content);
-        const doc = await vscode.workspace.openTextDocument(fullPath);
-        await vscode.window.showTextDocument(doc);
-        // No need to explicitly set language mode as it will be automatically set by the file watcher
+        // Set the cursor position inside the <alps> tags
+        const position = new vscode.Position(2, 4);
+        editor.selection = new vscode.Selection(position, position);
+
+        // Optionally, you can show a message to remind the user to save with .alps.xml extension
+        vscode.window.showInformationMessage('Remember to save the file with .alps.xml extension');
+
+    } catch (error) {
+        vscode.window.showErrorMessage(`Failed to create ALPS file: ${error}`);
     }
 }
