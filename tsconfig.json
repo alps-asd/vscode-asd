@@ -7,7 +7,11 @@
       "sourceMap": true,
       "rootDir": "src",
       "strict": true,
-      "esModuleInterop": true
+      "esModuleInterop": true,
+      "baseUrl": ".",
+      "paths": {
+          "vscode-languageclient/node": ["node_modules/vscode-languageclient/node"]
+      }
     },
     "include": [
       "src"
@@ -17,4 +21,3 @@
       ".vscode-test"
     ]
   }
-  
