@@ -12,3 +12,5 @@ vsc-extension-quickstart.md
 **/*.ts
 **/.vscode-test.*
 .idea/**
+!out/**
+!node_modules/**
