@@ -9,6 +9,7 @@ let client: LanguageClient;
 let fileWatchers: Map<string, vscode.FileSystemWatcher> = new Map();
 
 export function activate(context: ExtensionContext) {
+    console.log('Activating ALPS extension');
     // Register the command to render ASD
     let renderAsdDisposable = vscode.commands.registerCommand('extension.renderAsd', async (uri?: vscode.Uri) => {
         const editor = vscode.window.activeTextEditor;
