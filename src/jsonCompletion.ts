@@ -66,6 +66,16 @@ export function provideJsonCompletionItems(document: TextDocument, params: TextD
                 items.push(createCompletionItem('descriptor object', CompletionItemKind.Snippet, '{\n  "id": "$1",\n  "type": "$2"\n}'));
             }
         }
+
+        // Check if we're inside a "type" property
+        if (path[path.length - 1] === 'type' && node?.type === 'string') {
+            items.push(
+                createCompletionItem('semantic', CompletionItemKind.EnumMember, 'semantic'),
+                createCompletionItem('safe', CompletionItemKind.EnumMember, 'safe'),
+                createCompletionItem('unsafe', CompletionItemKind.EnumMember, 'unsafe'),
+                createCompletionItem('idempotent', CompletionItemKind.EnumMember, 'idempotent')
+            );
+        }
     } else {
         // Outside the alps object
         items.push(createCompletionItem('alps', CompletionItemKind.Property, '"alps": {$1}'));
