@@ -44,6 +44,7 @@ export function activate(context: ExtensionContext) {
 
     const clientOptions: LanguageClientOptions = {
         documentSelector: [
+            { scheme: 'file', language: 'alps-xml' },
             { scheme: 'file', pattern: '**/*.alps.xml' },
             { scheme: 'file', pattern: '**/*.alps.json' }
         ],
