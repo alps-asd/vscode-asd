@@ -42,11 +42,12 @@ export function provideJsonCompletionItems(
     const surroundingText = text.substring(startOffset, endOffset);
     console.log('Surrounding text:', JSON.stringify(surroundingText));
 
-    const isStartOfObject = /\{\s*$/.test(text.substring(0, offset));
-    console.log('Is start of object:', isStartOfObject);
-
     const isInsideString = node?.type === 'string';
     console.log('Is inside string:', isInsideString);
+
+    const isStartOfObject = (node?.type === 'object' && node.offset === offset - 1) ||
+        (node?.type === 'array' && node.children && node.children.length === 0);
+    console.log('Is start of object:', isStartOfObject);
 
     if (isStartOfObject) {
         items.push(...getObjectCompletions(path));
@@ -54,6 +55,8 @@ export function provideJsonCompletionItems(
         items.push(...getStringCompletions(path, descriptors));
     } else if (node?.type === 'property') {
         items.push(...getPropertyValueCompletions(path));
+    } else if (location.isAtPropertyKey && path[path.length - 2] === 'descriptor') {
+        items.push(...getDescriptorPropertyCompletions());
     }
 
     console.log('Generated completion items:', items.map(item => item.label));
@@ -65,23 +68,14 @@ export function provideJsonCompletionItems(
 function getObjectCompletions(path: jsonc.JSONPath): CompletionItem[] {
     if (path.length === 0) {
         return [createCompletionItem('alps', CompletionItemKind.Property, '"alps": {$1}')];
-    } else if (path[0] === 'alps') {
+    } else if (path[0] === 'alps' && path.length === 1) {
         return [
             createCompletionItem('version', CompletionItemKind.Property, '"version": "$1"'),
             createCompletionItem('doc', CompletionItemKind.Property, '"doc": {$1}'),
             createCompletionItem('descriptor', CompletionItemKind.Property, '"descriptor": [$1]')
         ];
-    } else if (path[1] === 'descriptor' && typeof path[2] === 'number') {
-        return [
-            createCompletionItem('id', CompletionItemKind.Property, '"id": "$1"'),
-            createCompletionItem('href', CompletionItemKind.Property, '"href": "$1"'),
-            createCompletionItem('name', CompletionItemKind.Property, '"name": "$1"'),
-            createCompletionItem('type', CompletionItemKind.Property, '"type": "$1"'),
-            createCompletionItem('rt', CompletionItemKind.Property, '"rt": "$1"'),
-            createCompletionItem('rel', CompletionItemKind.Property, '"rel": "$1"'),
-            createCompletionItem('doc', CompletionItemKind.Property, '"doc": {$1}'),
-            createCompletionItem('descriptor', CompletionItemKind.Property, '"descriptor": [$1]')
-        ];
+    } else if (path[1] === 'descriptor' && typeof path[2] === 'number' && path.length === 3) {
+        return [createCompletionItem('descriptor object', CompletionItemKind.Snippet, '{\n  "id": "$1",\n  "type": "$2"\n}')];
     } else if (path[path.length - 1] === 'doc') {
         return [
             createCompletionItem('value', CompletionItemKind.Property, '"value": "$1"'),
@@ -136,10 +130,23 @@ function getPropertyValueCompletions(path: jsonc.JSONPath): CompletionItem[] {
     const lastPath = path[path.length - 1];
     if (lastPath === 'descriptor') {
         return [
-            createCompletionItem('descriptor object', CompletionItemKind.Snippet, '{\n  "id": "$1",\n  "type": "$2"\n}')
+            createCompletionItem('descriptor array', CompletionItemKind.Snippet, '[\n  {\n    "id": "$1",\n    "type": "$2"\n  }\n]')
         ];
     }
     return [];
+}
+
+function getDescriptorPropertyCompletions(): CompletionItem[] {
+    return [
+        createCompletionItem('id', CompletionItemKind.Property, '"id": "$1"'),
+        createCompletionItem('href', CompletionItemKind.Property, '"href": "$1"'),
+        createCompletionItem('name', CompletionItemKind.Property, '"name": "$1"'),
+        createCompletionItem('type', CompletionItemKind.Property, '"type": "$1"'),
+        createCompletionItem('rt', CompletionItemKind.Property, '"rt": "$1"'),
+        createCompletionItem('rel', CompletionItemKind.Property, '"rel": "$1"'),
+        createCompletionItem('doc', CompletionItemKind.Property, '"doc": {$1}'),
+        createCompletionItem('descriptor', CompletionItemKind.Property, '"descriptor": [$1]')
+    ];
 }
 
 function createCompletionItem(label: string, kind: CompletionItemKind, insertText: string): CompletionItem {
