@@ -4,7 +4,9 @@ import {
     InsertTextFormat,
     TextDocumentPositionParams,
     CompletionList,
-    Position
+    Position,
+    Range,
+    TextEdit
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import * as jsonc from 'jsonc-parser';
@@ -48,14 +50,19 @@ export function provideJsonCompletionItems(
     const isStartOfObject = (node?.type === 'object' && (node.offset === offset - 1 || node.offset === offset));
     console.log('Is start of object:', isStartOfObject);
 
-    if (isStartOfObject) {
-        items = getObjectCompletions(path);
+    const isAfterComma = text.substring(offset - 1, offset) === ',';
+    console.log('Is after comma:', isAfterComma);
+
+    if (isAfterComma && path[1] === 'descriptor' && typeof path[2] === 'number') {
+        items = getAutoInsertCompletions(document, params.position);
+    } else if (isStartOfObject) {
+        items = getObjectCompletions(path, document, params.position);
     } else if (isInsideString) {
         items = getStringCompletions(path, descriptors);
     } else if (node?.type === 'property') {
-        items = getPropertyValueCompletions(path);
+        items = getPropertyValueCompletions(path, document, params.position);
     } else if (location.isAtPropertyKey) {
-        items = getPropertyKeyCompletions(path);
+        items = getPropertyKeyCompletions(path, document, params.position);
     }
 
     console.log('Generated completion items:', items.map(item => item.label));
@@ -64,23 +71,52 @@ export function provideJsonCompletionItems(
     return CompletionList.create(items, false);
 }
 
-function getObjectCompletions(path: jsonc.JSONPath): CompletionItem[] {
+function getAutoInsertCompletions(document: TextDocument, position: Position): CompletionItem[] {
+    const text = document.getText();
+    const lines = text.split('\n');
+    const currentLine = lines[position.line];
+    const indent = currentLine.match(/^\s*/)?.[0] || '';
+    const additionalIndent = '  ';
+
+    const insertText = `\n${indent}${additionalIndent}{\n${indent}${additionalIndent}${additionalIndent}$0\n${indent}${additionalIndent}}`;
+    const range = Range.create(position, position);
+
+    return [
+        {
+            label: 'New Descriptor',
+            kind: CompletionItemKind.Snippet,
+            insertText: insertText,
+            insertTextFormat: InsertTextFormat.Snippet,
+            textEdit: TextEdit.insert(position, insertText),
+            additionalTextEdits: [TextEdit.insert(position, `\n${indent}`)],
+            command: { title: 'Trigger Suggest', command: 'editor.action.triggerSuggest' }
+        }
+    ];
+}
+
+function getObjectCompletions(path: jsonc.JSONPath, document: TextDocument, position: Position): CompletionItem[] {
+    const text = document.getText();
+    const lines = text.split('\n');
+    const currentLine = lines[position.line];
+    const indent = currentLine.match(/^\s*/)?.[0] || '';
+    const additionalIndent = '  ';
+
     if (path.length === 0) {
-        return [createCompletionItem('alps', CompletionItemKind.Property, '"alps": {$1}')];
+        return [createCompletionItem('alps', CompletionItemKind.Property, '"alps": {$1}', document, position)];
     } else if (path[0] === 'alps' && path.length === 1) {
         return [
-            createCompletionItem('version', CompletionItemKind.Property, '"version": "$1"'),
-            createCompletionItem('doc', CompletionItemKind.Property, '"doc": {$1}'),
-            createCompletionItem('descriptor', CompletionItemKind.Property, '"descriptor": [{$1}]')
+            createCompletionItem('version', CompletionItemKind.Property, '"version": "$1"', document, position),
+            createCompletionItem('doc', CompletionItemKind.Property, '"doc": {$1}', document, position),
+            createCompletionItem('descriptor', CompletionItemKind.Property, `"descriptor": [\n${indent}${additionalIndent}${additionalIndent}{\n${indent}${additionalIndent}${additionalIndent}${additionalIndent}$1\n${indent}${additionalIndent}${additionalIndent}}\n${indent}${additionalIndent}]`, document, position)
         ];
     } else if (path[1] === 'descriptor' && typeof path[2] === 'number') {
-        return getDescriptorPropertyCompletions();
+        return getDescriptorPropertyCompletions(document, position);
     } else if (path[path.length - 1] === 'doc') {
         return [
-            createCompletionItem('value', CompletionItemKind.Property, '"value": "$1"'),
-            createCompletionItem('format', CompletionItemKind.Property, '"format": "$1"'),
-            createCompletionItem('href', CompletionItemKind.Property, '"href": "$1"'),
-            createCompletionItem('contentType', CompletionItemKind.Property, '"contentType": "$1"')
+            createCompletionItem('value', CompletionItemKind.Property, '"value": "$1"', document, position),
+            createCompletionItem('format', CompletionItemKind.Property, '"format": "$1"', document, position),
+            createCompletionItem('href', CompletionItemKind.Property, '"href": "$1"', document, position),
+            createCompletionItem('contentType', CompletionItemKind.Property, '"contentType": "$1"', document, position)
         ];
     }
     return [];
@@ -125,51 +161,80 @@ function getStringCompletions(path: jsonc.JSONPath, descriptors: DescriptorInfo[
     return [];
 }
 
-function getPropertyValueCompletions(path: jsonc.JSONPath): CompletionItem[] {
+function getPropertyValueCompletions(path: jsonc.JSONPath, document: TextDocument, position: Position): CompletionItem[] {
     const lastPath = path[path.length - 1];
     if (lastPath === 'descriptor') {
+        const text = document.getText();
+        const lines = text.split('\n');
+        const currentLine = lines[position.line];
+        const indent = currentLine.match(/^\s*/)?.[0] || '';
+        const additionalIndent = '  ';
+
+        const insertText = `[\n${indent}${additionalIndent}{\n${indent}${additionalIndent}${additionalIndent}$1\n${indent}${additionalIndent}}\n${indent}]`;
+
         return [
-            createCompletionItem('descriptor array', CompletionItemKind.Snippet, '[\n  {\n    "id": "$1",\n    "type": "$2"\n  }\n]')
+            createCompletionItem('descriptor array', CompletionItemKind.Snippet, insertText, document, position)
         ];
     }
     return [];
 }
 
-function getPropertyKeyCompletions(path: jsonc.JSONPath): CompletionItem[] {
+function getPropertyKeyCompletions(path: jsonc.JSONPath, document: TextDocument, position: Position): CompletionItem[] {
     if (path[0] === 'alps') {
         if (path[1] === 'descriptor' && typeof path[2] === 'number') {
-            return getDescriptorPropertyCompletions();
+            return getDescriptorPropertyCompletions(document, position);
         } else if (path[1] === 'doc') {
             return [
-                createCompletionItem('value', CompletionItemKind.Property, 'value": "$1"'),
-                createCompletionItem('format', CompletionItemKind.Property, 'format": "$1"'),
-                createCompletionItem('href', CompletionItemKind.Property, 'href": "$1"'),
-                createCompletionItem('contentType', CompletionItemKind.Property, 'contentType": "$1"')
+                createCompletionItem('value', CompletionItemKind.Property, 'value": "$1"', document, position),
+                createCompletionItem('format', CompletionItemKind.Property, 'format": "$1"', document, position),
+                createCompletionItem('href', CompletionItemKind.Property, 'href": "$1"', document, position),
+                createCompletionItem('contentType', CompletionItemKind.Property, 'contentType": "$1"', document, position)
             ];
         }
     }
     return [];
 }
 
-function getDescriptorPropertyCompletions(): CompletionItem[] {
+function getDescriptorPropertyCompletions(document: TextDocument, position: Position): CompletionItem[] {
     return [
-        createCompletionItem('id', CompletionItemKind.Property, '"id": "$1"'),
-        createCompletionItem('href', CompletionItemKind.Property, '"href": "$1"'),
-        createCompletionItem('name', CompletionItemKind.Property, '"name": "$1"'),
-        createCompletionItem('type', CompletionItemKind.Property, '"type": "$1"'),
-        createCompletionItem('rt', CompletionItemKind.Property, '"rt": "$1"'),
-        createCompletionItem('rel', CompletionItemKind.Property, '"rel": "$1"'),
-        createCompletionItem('def', CompletionItemKind.Property, '"def": "http://schema.org/$1"'),
-        createCompletionItem('doc', CompletionItemKind.Property, '"doc": {$1}'),
-        createCompletionItem('descriptor', CompletionItemKind.Property, '"descriptor": [{$1}]')
+        createCompletionItem('id', CompletionItemKind.Property, '"id": "$1"', document, position),
+        createCompletionItem('href', CompletionItemKind.Property, '"href": "$1"', document, position),
+        createCompletionItem('name', CompletionItemKind.Property, '"name": "$1"', document, position),
+        createCompletionItem('type', CompletionItemKind.Property, '"type": "$1"', document, position),
+        createCompletionItem('rt', CompletionItemKind.Property, '"rt": "$1"', document, position),
+        createCompletionItem('rel', CompletionItemKind.Property, '"rel": "$1"', document, position),
+        createCompletionItem('def', CompletionItemKind.Property, '"def": "http://schema.org/$1"', document, position),
+        createCompletionItem('doc', CompletionItemKind.Property, '"doc": {$1}', document, position),
+        createCompletionItem('descriptor', CompletionItemKind.Property, '"descriptor": [{$1}]', document, position)
     ];
 }
 
-function createCompletionItem(label: string, kind: CompletionItemKind, insertText: string): CompletionItem {
+function createCompletionItem(label: string, kind: CompletionItemKind, insertText: string, document: TextDocument, position: Position): CompletionItem {
+    const text = document.getText();
+    const lines = text.split('\n');
+    const currentLine = lines[position.line];
+    const indent = currentLine.match(/^\s*/)?.[0] || '';
+
+    const adjustedInsertText = insertText.split('\n').map((line, index) => {
+        if (index === 0) return line;
+        return indent + line;
+    }).join('\n');
+
     return {
         label,
         kind,
-        insertText,
+        insertText: adjustedInsertText,
         insertTextFormat: InsertTextFormat.Snippet
     };
 }
+
+// Make sure to export any other functions that might be used in other files
+export {
+    getAutoInsertCompletions,
+    getObjectCompletions,
+    getStringCompletions,
+    getPropertyValueCompletions,
+    getPropertyKeyCompletions,
+    getDescriptorPropertyCompletions,
+    createCompletionItem
+};
