@@ -161,7 +161,7 @@ function getDescriptorPropertyCompletions(): CompletionItem[] {
         createCompletionItem('rel', CompletionItemKind.Property, '"rel": "$1"'),
         createCompletionItem('def', CompletionItemKind.Property, '"def": "http://schema.org/$1"'),
         createCompletionItem('doc', CompletionItemKind.Property, '"doc": {$1}'),
-        createCompletionItem('descriptor', CompletionItemKind.Property, '"descriptor": [$1]')
+        createCompletionItem('descriptor', CompletionItemKind.Property, '"descriptor": [{$1}]')
     ];
 }
 
