@@ -71,7 +71,7 @@ function getObjectCompletions(path: jsonc.JSONPath): CompletionItem[] {
         return [
             createCompletionItem('version', CompletionItemKind.Property, '"version": "$1"'),
             createCompletionItem('doc', CompletionItemKind.Property, '"doc": {$1}'),
-            createCompletionItem('descriptor', CompletionItemKind.Property, '"descriptor": [$1]')
+            createCompletionItem('descriptor', CompletionItemKind.Property, '"descriptor": [{$1}]')
         ];
     } else if (path[1] === 'descriptor' && typeof path[2] === 'number') {
         return getDescriptorPropertyCompletions();
