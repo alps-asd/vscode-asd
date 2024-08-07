@@ -192,6 +192,7 @@ function getDescriptorPropertyCompletions(): CompletionItem[] {
         createCompletionItem('id', CompletionItemKind.Property, '"id": "$1"'),
         createCompletionItem('href', CompletionItemKind.Property, '"href": "$1"'),
         createCompletionItem('name', CompletionItemKind.Property, '"name": "$1"'),
+        createCompletionItem('title', CompletionItemKind.Property, '"title": "$1"'),
         createCompletionItem('type', CompletionItemKind.Property, '"type": "$1"'),
         createCompletionItem('rt', CompletionItemKind.Property, '"rt": "$1"'),
         createCompletionItem('rel', CompletionItemKind.Property, '"rel": "$1"'),
