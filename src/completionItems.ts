@@ -39,13 +39,12 @@ export function provideCompletionItems(params: CompletionParams, documents: Text
 
     const text = document.getText();
     const offset = document.offsetAt(params.position);
-    const linePrefix = text.slice(text.lastIndexOf('', offset - 1) + 1, offset);
-    const idStart = /<descriptor\s+id="\w*$/.test(linePrefix);
+    const linePrefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
+
     console.log('Line prefix:', linePrefix);
     console.log('Offset:', offset);
 
-    const insideAlps = /<alps[^>]*>[\s\S]*$/.test(text.slice(0, offset));
-    const tagStart = /<\s*([a-zA-Z]*)?$/.test(linePrefix);
+    const tagStart = /<\s*$/.test(linePrefix) || (offset > 0 && text[offset - 1] === '<');
     const attributeStart = /\s+\w*$/.test(linePrefix);
     const insideTypeAttr = /\s+type=["'][^"']*$/.test(linePrefix);
     const insideHrefAttr = /\s+href=["'][^"']*$/.test(linePrefix);
@@ -55,7 +54,7 @@ export function provideCompletionItems(params: CompletionParams, documents: Text
     const insideFormatAttr = /<doc[^>]*\s+format=["'][^"']*$/.test(linePrefix);
     const insideContentTypeAttr = /<doc[^>]*\s+contentType=["'][^"']*$/.test(linePrefix);
 
-    console.log('insideAlps:', insideAlps, 'tagStart:', tagStart, 'attributeStart:', attributeStart,
+    console.log('tagStart:', tagStart, 'attributeStart:', attributeStart,
         'insideTypeAttr:', insideTypeAttr, 'insideHrefAttr:', insideHrefAttr,
         'insideRtAttr:', insideRtAttr, 'tagClosing:', tagClosing,
         'docStart:', docStart, 'insideFormatAttr:', insideFormatAttr,
@@ -120,37 +119,22 @@ export function provideCompletionItems(params: CompletionParams, documents: Text
                 documentation: `Transition to ${descriptor.id}`
             }));
     } else if (tagStart) {
-        if (!insideAlps) {
-            items = [{
-                label: 'alps',
-                kind: CompletionItemKind.Class,
-                insertText: `?xml version="1.0" encoding="UTF-8" ?><alps xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://alps-io.github.io/schemas/alps.xsd">	$1</alps`,
-                insertTextFormat: InsertTextFormat.Snippet,
-                documentation: `Inserts a <alps> tag with version attribute and closes it.`
-            }];
-        } else {
-            const tagNames = ['title', 'doc', 'link', 'descriptor'];
-            tagNames.forEach(tagName => {
-                items.push(createTagCompletionItem(tagName));
-            });
-        }
-    } else if (idStart) {
-        items = semanticTerms.map(term => ({
-            label: term,
-            kind: CompletionItemKind.Text,
-            insertText: term,
-            insertTextFormat: InsertTextFormat.PlainText,
-            documentation: `Inserts the term "${term}" as id value.`
-        }));
+        const tagNames = ['descriptor', 'doc', 'ext', 'link'];
+        items = tagNames.map(tagName => createTagCompletionItem(tagName));
     } else if (attributeStart) {
         const currentAttributesMatch = linePrefix.match(/\w+(?==)/g);
         const currentAttributes: string[] = currentAttributesMatch ? currentAttributesMatch : [];
-        const availableAttributes = ['id', 'href', 'type', 'rt', 'rel', 'title', 'tag']
+        const availableAttributes = ['id', 'href', 'rel', 'name', 'type', 'rt', 'title', 'tag']
             .filter(attr => !currentAttributes.includes(attr));
         items = availableAttributes.map(attr => ({
             label: attr,
             kind: CompletionItemKind.Property
         }));
+    }
+
+    // 常に最低限の補完アイテムを提供
+    if (items.length === 0) {
+        items = [createTagCompletionItem('descriptor')];
     }
 
     console.log(`Providing ${items.length} completion items`);
