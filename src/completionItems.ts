@@ -53,12 +53,13 @@ export function provideCompletionItems(params: CompletionParams, documents: Text
     const docStart = /<doc\s*$/.test(linePrefix) || /<doc\s+[^>]*$/.test(linePrefix);
     const insideFormatAttr = /<doc[^>]*\s+format=["'][^"']*$/.test(linePrefix);
     const insideContentTypeAttr = /<doc[^>]*\s+contentType=["'][^"']*$/.test(linePrefix);
+    const insideIdAttr = /\s+id=["'][^"']*$/.test(linePrefix);
 
     console.log('tagStart:', tagStart, 'attributeStart:', attributeStart,
         'insideTypeAttr:', insideTypeAttr, 'insideHrefAttr:', insideHrefAttr,
         'insideRtAttr:', insideRtAttr, 'tagClosing:', tagClosing,
         'docStart:', docStart, 'insideFormatAttr:', insideFormatAttr,
-        'insideContentTypeAttr:', insideContentTypeAttr);
+        'insideContentTypeAttr:', insideContentTypeAttr, 'insideIdAttr:', insideIdAttr);
 
     let items: CompletionItem[] = [];
 
@@ -130,11 +131,12 @@ export function provideCompletionItems(params: CompletionParams, documents: Text
             label: attr,
             kind: CompletionItemKind.Property
         }));
-    }
-
-    // 常に最低限の補完アイテムを提供
-    if (items.length === 0) {
-        items = [createTagCompletionItem('descriptor')];
+    } else if (insideIdAttr) {
+        items = semanticTerms.map(term => ({
+            label: term,
+            kind: CompletionItemKind.Text,
+            documentation: `Semantic term: ${term}`
+        }));
     }
 
     console.log(`Providing ${items.length} completion items`);
