@@ -33,7 +33,7 @@ async function parseJsonAlpsProfile(content: string): Promise<DescriptorInfo[]> 
 
 async function parseXmlAlpsProfile(content: string): Promise<DescriptorInfo[]> {
     try {
-        const result = await xml2js.parseStringPromise(content);
+        const result = await xml2js.parseStringPromise(content, { strict: false });
         const descriptors = result.alps?.descriptor
             ?.map((desc: any) => ({
                 id: desc.$.id,
@@ -54,6 +54,7 @@ function extractDescriptors(content: string): Promise<DescriptorInfo[]> {
     return new Promise((resolve) => {
         const parser = sax.parser(true);
         const descriptors: DescriptorInfo[] = [];
+
         parser.onopentag = (node) => {
             if (node.name === 'descriptor') {
                 const id = node.attributes.id as string;
@@ -63,12 +64,15 @@ function extractDescriptors(content: string): Promise<DescriptorInfo[]> {
                 }
             }
         };
+
         parser.onend = () => {
             resolve(descriptors);
         };
+
         parser.onerror = () => {
             parser.resume();
         };
+
         parser.write(content).close();
     });
 }
