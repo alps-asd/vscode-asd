@@ -64,7 +64,8 @@
         ],
         "configurationDefaults": {
             "files.associations": {
-                "*.alps.xml": "alps-xml"
+                "*.alps.xml": "alps-xml",
+                "alps.xml": "alps-xml"
             }
         }
     },
