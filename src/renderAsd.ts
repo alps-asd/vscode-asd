@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as child_process from 'child_process';
 
 interface ParsedError {
-    type: 'InvalidXml' | 'DescriptorNotFound' | 'Unknown';
+    type: 'InvalidXml' | 'DescriptorNotFound' | 'ParsingException' | 'InvalidDescriptorException' | 'Unknown';
     message: string;
     line?: number;
     descriptorId?: string;
@@ -25,6 +25,15 @@ function parseErrorMessage(errorMessage: string): ParsedError {
             type: 'DescriptorNotFound',
             message: `Descriptor not found: ${descriptorNotFoundMatch[1]}`,
             descriptorId: descriptorNotFoundMatch[1]
+        };
+    }
+
+    const parsingExceptionMatch = errorMessage.match(/ParsingException\(Parse error on line (\d+)/);
+    if (parsingExceptionMatch) {
+        return {
+            type: 'ParsingException',
+            message: `ParsingException: ${parsingExceptionMatch[1]}`,
+            descriptorId: parsingExceptionMatch[1]
         };
     }
 
@@ -54,6 +63,7 @@ async function showErrorMessage(error: string) {
 
     switch (parsedError.type) {
         case 'InvalidXml':
+        case 'ParsingException':
             vscode.window.showErrorMessage(`Error on line ${parsedError.line}: ${parsedError.message}`, 'Go to Error').then(selection => {
                 if (selection === 'Go to Error' && parsedError.line) {
                     const position = new vscode.Position(parsedError.line - 1, 0);
@@ -78,7 +88,7 @@ async function showErrorMessage(error: string) {
             break;
 
         default:
-            vscode.window.showErrorMessage(`Error rendering ALPS profile: ${parsedError.message}`);
+            vscode.window.showErrorMessage(`Error rendering ALPS profile: ${parsedError.type} : ${parsedError.message}`);
     }
 }
 
