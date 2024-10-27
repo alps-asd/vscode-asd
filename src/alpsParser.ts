@@ -1,14 +1,39 @@
 import * as xml2js from 'xml2js';
 import * as sax from 'sax';
+import { parseJson } from './jsonParser';
 
 export interface DescriptorInfo {
     id: string;
     type: string;
 }
 
-export async function parseAlpsProfile(content: string): Promise<DescriptorInfo[]> {
+export async function parseAlpsProfile(content: string, languageId: string): Promise<DescriptorInfo[]> {
+    if (languageId === 'alps-json') {
+        return parseJsonAlpsProfile(content);
+    } else {
+        return parseXmlAlpsProfile(content);
+    }
+}
+
+async function parseJsonAlpsProfile(content: string): Promise<DescriptorInfo[]> {
     try {
-        const result = await xml2js.parseStringPromise(content);
+        const jsonContent = parseJson(content);
+        if (jsonContent && jsonContent.alps && jsonContent.alps.descriptor) {
+            return jsonContent.alps.descriptor.map((desc: any) => ({
+                id: desc.id,
+                type: desc.type || 'semantic'
+            }));
+        }
+        return [];
+    } catch (err) {
+        console.error('Error parsing JSON ALPS profile:', err);
+        return [];
+    }
+}
+
+async function parseXmlAlpsProfile(content: string): Promise<DescriptorInfo[]> {
+    try {
+        const result = await xml2js.parseStringPromise(content, { strict: false });
         const descriptors = result.alps?.descriptor
             ?.map((desc: any) => ({
                 id: desc.$.id,
@@ -20,7 +45,7 @@ export async function parseAlpsProfile(content: string): Promise<DescriptorInfo[
         }
         return extractDescriptors(content);
     } catch (err) {
-        console.error('Error parsing ALPS profile:', err);
+        console.error('Error parsing XML ALPS profile:', err);
         return extractDescriptors(content);
     }
 }
