@@ -26,48 +26,45 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.validateXML = void 0;
 const sax = __importStar(require("sax"));
 const node_1 = require("vscode-languageserver/node");
+const VALIDATOR_SOURCE = 'ALPS XML Validator';
 function validateXML(content) {
     const diagnostics = [];
     const parser = sax.parser(true);
-    let currentElement = null;
     const openTags = [];
     parser.onerror = (error) => {
         const { line, column } = parser;
-        const range = node_1.Range.create(node_1.Position.create(line - 1, column), node_1.Position.create(line - 1, column + 1));
         diagnostics.push({
             severity: node_1.DiagnosticSeverity.Error,
-            range,
+            range: node_1.Range.create(node_1.Position.create(line - 1, column), node_1.Position.create(line - 1, column + 1)),
             message: `XML syntax error: ${error.message}`,
-            source: 'ALPS XML Validator',
-            tags: [node_1.DiagnosticTag.Unnecessary] // これにより破線で表示されます
+            source: VALIDATOR_SOURCE,
+            tags: [node_1.DiagnosticTag.Unnecessary]
         });
         parser.resume();
     };
     parser.onopentag = (node) => {
-        currentElement = node.name;
         openTags.push(node.name);
     };
     parser.onclosetag = (tagName) => {
-        if (openTags.pop() !== tagName) {
+        const expectedTag = openTags.pop();
+        if (expectedTag !== tagName) {
             const { line, column } = parser;
-            const range = node_1.Range.create(node_1.Position.create(line - 1, column - tagName.length - 2), node_1.Position.create(line - 1, column));
             diagnostics.push({
                 severity: node_1.DiagnosticSeverity.Error,
-                range,
-                message: `Mismatched closing tag: expected </${openTags[openTags.length - 1] || 'unknown'}>, found </${tagName}>`,
-                source: 'ALPS XML Validator',
-                tags: [node_1.DiagnosticTag.Unnecessary] // これにより破線で表示されます
+                range: node_1.Range.create(node_1.Position.create(line - 1, column - tagName.length - 2), node_1.Position.create(line - 1, column)),
+                message: `Mismatched closing tag: expected </${expectedTag || 'unknown'}>, found </${tagName}>`,
+                source: VALIDATOR_SOURCE,
+                tags: [node_1.DiagnosticTag.Unnecessary]
             });
         }
     };
     parser.write(content).close();
-    // 閉じていないタグを警告として追加
     if (openTags.length > 0) {
         diagnostics.push({
             severity: node_1.DiagnosticSeverity.Warning,
             range: node_1.Range.create(node_1.Position.create(parser.line - 1, parser.column), node_1.Position.create(parser.line - 1, parser.column + 1)),
             message: `Unclosed tags: ${openTags.join(', ')}`,
-            source: 'ALPS XML Validator'
+            source: VALIDATOR_SOURCE
         });
     }
     return diagnostics;
