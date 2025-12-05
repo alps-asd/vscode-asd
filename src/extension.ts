@@ -1,41 +1,55 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import {ExtensionContext, workspace, CancellationToken, CompletionContext} from 'vscode';
-import {LanguageClient, LanguageClientOptions, ServerOptions, TransportKind} from 'vscode-languageclient/node';
-import {renderAsd} from "./renderAsd";
-import {createAlpsFile} from "./createAlpsFile";
+import { ExtensionContext, workspace, CancellationToken, CompletionContext } from 'vscode';
+import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from 'vscode-languageclient/node';
+import { renderAsd } from './renderAsd';
+import { createAlpsFile } from './createAlpsFile';
 
 let client: LanguageClient;
-let fileWatchers: Map<string, vscode.FileSystemWatcher> = new Map();
+const fileWatchers = new Map<string, vscode.FileSystemWatcher>();
 let outputChannel: vscode.OutputChannel;
 
-export function activate(context: ExtensionContext) {
-    console.log('Activating ALPS extension');
-    outputChannel = vscode.window.createOutputChannel("ALPS Extension");
+export function activate(context: ExtensionContext): void {
+    outputChannel = vscode.window.createOutputChannel('ALPS Extension');
     outputChannel.appendLine('ALPS extension activated');
 
-    // Register the command to render ASD
-    let renderAsdDisposable = vscode.commands.registerCommand('extension.renderAsd', async (uri?: vscode.Uri) => {
-        const editor = vscode.window.activeTextEditor;
-        if (editor || uri) {
-            const document = uri ? await vscode.workspace.openTextDocument(uri) : editor!.document;
+    registerCommands(context);
+    startLanguageServer(context);
+    registerCompletionProvider(context);
+    registerDocumentChangeListener();
+
+    outputChannel.appendLine('ALPS extension setup completed');
+}
+
+function registerCommands(context: ExtensionContext): void {
+    const renderAsdDisposable = vscode.commands.registerCommand(
+        'extension.renderAsd',
+        async (uri?: vscode.Uri) => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor && !uri) {
+                vscode.window.showInformationMessage('No active document to render ALPS preview.');
+                return;
+            }
+
+            const document = uri
+                ? await vscode.workspace.openTextDocument(uri)
+                : editor!.document;
+
             renderAsd(document.fileName, context.extensionPath);
-            // 新しいファイルウォッチャーを作成
             createFileWatcher(document.fileName);
-        } else {
-            vscode.window.showInformationMessage('No active document to render ALPS preview.');
         }
-    });
-
-    context.subscriptions.push(renderAsdDisposable);
-
-    // Register the command to create a new ALPS file
-    let createAlpsFileDisposable = vscode.commands.registerCommand('extension.createAlpsFile', createAlpsFile);
-    context.subscriptions.push(createAlpsFileDisposable);
-
-    const serverModule = context.asAbsolutePath(
-        path.join('out', 'server.js')
     );
+
+    const createAlpsFileDisposable = vscode.commands.registerCommand(
+        'extension.createAlpsFile',
+        createAlpsFile
+    );
+
+    context.subscriptions.push(renderAsdDisposable, createAlpsFileDisposable);
+}
+
+function startLanguageServer(context: ExtensionContext): void {
+    const serverModule = context.asAbsolutePath(path.join('out', 'server.js'));
     const debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
 
     const serverOptions: ServerOptions = {
@@ -53,10 +67,8 @@ export function activate(context: ExtensionContext) {
             { scheme: 'file', pattern: '**/*.alps.xml' },
             { scheme: 'file', pattern: '**/*.alps.json' }
         ],
-        synchronize: {
-            // ファイルウォッチャーは動的に管理するため、ここでは指定しない
-        },
-        outputChannel: outputChannel
+        synchronize: {},
+        outputChannel
     };
 
     client = new LanguageClient(
@@ -67,70 +79,76 @@ export function activate(context: ExtensionContext) {
     );
 
     client.start();
+}
 
-    // Add comma trigger for completion using LSP
-    context.subscriptions.push(
-        vscode.languages.registerCompletionItemProvider(
-            [{ language: 'json', pattern: '**/*.alps.json' }],
-            {
-                provideCompletionItems(
-                    document: vscode.TextDocument,
-                    position: vscode.Position,
-                    token: CancellationToken,
-                    context: CompletionContext
-                ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
-                    const linePrefix = document.lineAt(position).text.substr(0, position.character);
-                    outputChannel.appendLine(`Completion triggered. Line prefix: ${linePrefix}`);
-                    outputChannel.appendLine(`Trigger kind: ${context.triggerKind}, character: ${context.triggerCharacter}`);
+function registerCompletionProvider(context: ExtensionContext): void {
+    const provider = vscode.languages.registerCompletionItemProvider(
+        [{ language: 'json', pattern: '**/*.alps.json' }],
+        {
+            provideCompletionItems(
+                document: vscode.TextDocument,
+                position: vscode.Position,
+                _token: CancellationToken,
+                completionContext: CompletionContext
+            ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
+                const linePrefix = document.lineAt(position).text.substring(0, position.character);
+                outputChannel.appendLine(`Completion triggered. Line prefix: ${linePrefix}`);
+                outputChannel.appendLine(
+                    `Trigger kind: ${completionContext.triggerKind}, character: ${completionContext.triggerCharacter}`
+                );
 
-                    // Check if the completion was triggered by a comma
-                    if (context.triggerCharacter === ',') {
-                        outputChannel.appendLine('Comma detected, sending completion request to server');
-                        // Trigger server-side completion
-                        return client.sendRequest<vscode.CompletionList | vscode.CompletionItem[] | null>('textDocument/completion', {
-                            textDocument: { uri: document.uri.toString() },
-                            position: position,
-                            context: {
-                                triggerKind: context.triggerKind,
-                                triggerCharacter: context.triggerCharacter
-                            }
-                        }).then(
-                            (result) => {
-                                outputChannel.appendLine(`Received completion result: ${JSON.stringify(result)}`);
-                                return result;
-                            },
-                            (error) => {
-                                outputChannel.appendLine(`Error in completion request: ${error}`);
-                                return null;
-                            }
-                        );
-                    }
+                if (completionContext.triggerCharacter !== ',') {
                     return null;
                 }
-            },
-            ','  // Specify comma as trigger character
-        )
+
+                outputChannel.appendLine('Comma detected, sending completion request to server');
+                return client
+                    .sendRequest<vscode.CompletionList | vscode.CompletionItem[] | null>(
+                        'textDocument/completion',
+                        {
+                            textDocument: { uri: document.uri.toString() },
+                            position,
+                            context: {
+                                triggerKind: completionContext.triggerKind,
+                                triggerCharacter: completionContext.triggerCharacter
+                            }
+                        }
+                    )
+                    .then(
+                        (result) => {
+                            outputChannel.appendLine(`Received completion result: ${JSON.stringify(result)}`);
+                            return result;
+                        },
+                        (error) => {
+                            outputChannel.appendLine(`Error in completion request: ${error}`);
+                            return null;
+                        }
+                    );
+            }
+        },
+        ','
     );
 
-    // Add an event listener for text document changes
+    context.subscriptions.push(provider);
+}
+
+function registerDocumentChangeListener(): void {
     vscode.workspace.onDidChangeTextDocument((event) => {
-        if (event.contentChanges.length > 0 && event.contentChanges[0].text === ',') {
+        const hasCommaChange = event.contentChanges.some((change) => change.text === ',');
+        if (hasCommaChange) {
             outputChannel.appendLine('Comma typed. Triggering completion...');
             vscode.commands.executeCommand('editor.action.triggerSuggest');
         }
     });
-
-    outputChannel.appendLine('ALPS extension setup completed');
 }
 
-function createFileWatcher(filePath: string) {
+function createFileWatcher(filePath: string): void {
     if (fileWatchers.has(filePath)) {
-        return; // 既にウォッチャーが存在する場合は何もしない
+        return;
     }
 
     const watcher = workspace.createFileSystemWatcher(filePath);
     watcher.onDidChange(() => {
-        // ファイルが変更されたときの処理
         vscode.commands.executeCommand('extension.renderAsd', vscode.Uri.file(filePath));
     });
 
@@ -139,8 +157,8 @@ function createFileWatcher(filePath: string) {
 
 export function deactivate(): Thenable<void> | undefined {
     outputChannel.appendLine('Deactivating ALPS extension');
-    // ファイルウォッチャーをクリーンアップ
-    fileWatchers.forEach(watcher => watcher.dispose());
+
+    fileWatchers.forEach((watcher) => watcher.dispose());
     fileWatchers.clear();
 
     if (!client) {

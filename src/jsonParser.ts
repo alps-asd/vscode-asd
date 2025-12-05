@@ -1,10 +1,9 @@
 import * as jsonc from 'jsonc-parser';
 
-export function parseJson(content: string): any {
+export function parseJson(content: string): unknown {
     try {
         return jsonc.parse(content);
-    } catch (error) {
-        console.error('Error parsing JSON:', error);
+    } catch {
         return null;
     }
 }
