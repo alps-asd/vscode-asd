@@ -22,13 +22,17 @@ import { validateXML } from './ImprovedXMLValidator';
 import { validateJson } from './jsonValidator';
 import { provideJsonCompletionItems } from './jsonCompletion';
 
+type AlpsLanguageId = 'alps-xml' | 'alps-json';
+
+const VALIDATION_DELAY_MS = 500;
+const FULL_DIAGNOSTICS_DELAY_MS = 1000;
+
 const connection = createConnection(ProposedFeatures.all);
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 let descriptors: DescriptorInfo[] = [];
 let validationTimer: NodeJS.Timeout | null = null;
 const documentLanguageIds: Map<string, string> = new Map();
 
-// Create a simple logger
 const logger: Logger = {
     error: (message: string) => connection.console.error(message),
     warn: (message: string) => connection.console.warn(message),
@@ -37,8 +41,24 @@ const logger: Logger = {
 };
 
 function getErrorMessage(error: unknown): string {
-    if (error instanceof Error) return error.message;
+    if (error instanceof Error) {
+        return error.message;
+    }
     return String(error);
+}
+
+function isAlpsLanguage(languageId: string): languageId is AlpsLanguageId {
+    return languageId === 'alps-xml' || languageId === 'alps-json';
+}
+
+async function validateDocument(
+    document: TextDocument,
+    languageId: AlpsLanguageId
+): Promise<Diagnostic[]> {
+    if (languageId === 'alps-json') {
+        return validateJson(document);
+    }
+    return validateXML(document.getText());
 }
 
 connection.onInitialize((params: InitializeParams) => {
@@ -70,38 +90,45 @@ documents.onDidChangeContent(async (change: TextDocumentChangeEvent<TextDocument
         const document = change.document;
         const languageId = documentLanguageIds.get(document.uri) || document.languageId;
         logger.info(`Document changed. URI: ${document.uri}, Language ID: ${languageId}`);
-        if (languageId === 'alps-xml' || languageId === 'alps-json') {
-            if (validationTimer) {
-                clearTimeout(validationTimer);
-            }
-            validationTimer = setTimeout(async () => {
-                try {
-                    let diagnostics: Diagnostic[] = [];
-                    if (languageId === 'alps-json') {
-                        diagnostics = validateJson(document);
-                    } else {
-                        diagnostics = validateXML(document.getText());
-                    }
-                    const immediateErrors = diagnostics.filter(d => d.severity === DiagnosticSeverity.Error);
-                    connection.sendDiagnostics({ uri: document.uri, diagnostics: immediateErrors });
-                    setTimeout(() => {
-                        connection.sendDiagnostics({ uri: document.uri, diagnostics });
-                    }, 1000);
 
-                    descriptors = await parseAlpsProfile(document.getText(), languageId);
-                    logger.info(`Updated descriptors: ${JSON.stringify(descriptors)}`);
-                } catch (error) {
-                    logger.error(`Error in validation timer: ${getErrorMessage(error)}`);
-                    connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
-                }
-            }, 500);
+        if (!isAlpsLanguage(languageId)) {
+            return;
         }
+
+        if (validationTimer) {
+            clearTimeout(validationTimer);
+        }
+
+        validationTimer = setTimeout(async () => {
+            try {
+                const diagnostics = await validateDocument(document, languageId);
+                const immediateErrors = diagnostics.filter(
+                    (d) => d.severity === DiagnosticSeverity.Error
+                );
+
+                connection.sendDiagnostics({ uri: document.uri, diagnostics: immediateErrors });
+
+                setTimeout(() => {
+                    connection.sendDiagnostics({ uri: document.uri, diagnostics });
+                }, FULL_DIAGNOSTICS_DELAY_MS);
+
+                descriptors = await parseAlpsProfile(document.getText(), languageId);
+                logger.info(`Updated descriptors: ${JSON.stringify(descriptors)}`);
+            } catch (error) {
+                logger.error(`Error in validation timer: ${getErrorMessage(error)}`);
+                connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
+            }
+        }, VALIDATION_DELAY_MS);
     } catch (error) {
         logger.error(`Error in onDidChangeContent: ${getErrorMessage(error)}`);
     }
 });
 
-connection.onCompletion((params: TextDocumentPositionParams & { context?: { triggerKind: CompletionTriggerKind, triggerCharacter?: string } }): CompletionList => {
+connection.onCompletion((
+    params: TextDocumentPositionParams & {
+        context?: { triggerKind: CompletionTriggerKind; triggerCharacter?: string };
+    }
+): CompletionList => {
     logger.info('=== Completion Requested ===');
     logger.info(`Document URI: ${params.textDocument.uri}`);
     logger.info(`Position: ${JSON.stringify(params.position)}`);
@@ -143,13 +170,18 @@ connection.onCompletion((params: TextDocumentPositionParams & { context?: { trig
 });
 
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
+    const label = typeof item.label === 'string'
+        ? item.label
+        : (item.label as { label: string }).label;
+
     if (item.kind === CompletionItemKind.Property) {
-        item.detail = `ALPS property: ${item.label}`;
-        item.documentation = `This is a property in the ALPS specification for ${item.label}.`;
+        item.detail = `ALPS property: ${label}`;
+        item.documentation = `This is a property in the ALPS specification for ${label}.`;
     } else if (item.kind === CompletionItemKind.Snippet) {
-        item.detail = `ALPS snippet: ${item.label}`;
-        item.documentation = `This snippet provides a template for ${item.label} in ALPS.`;
+        item.detail = `ALPS snippet: ${label}`;
+        item.documentation = `This snippet provides a template for ${label} in ALPS.`;
     }
+
     logger.info(`Completion item resolved: ${JSON.stringify(item)}`);
     return item;
 });
@@ -158,7 +190,6 @@ documents.listen(connection);
 connection.listen();
 logger.info('ALPS Language Server is running');
 
-// Send all logger messages to the client
 connection.onNotification(LogMessageNotification.type, (params) => {
     connection.sendNotification(LogMessageNotification.type, params);
 });
